@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mamram Alumni — Social Media Dashboard</title>
+<style>
+  :root {
+    color-scheme: light;
+    --page:           #f9f9f7;
+    --surface:        #fcfcfb;
+    --text-primary:   #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted:     #898781;
+    --grid:           #e1e0d9;
+    --axis:           #c3c2b7;
+    --border:         rgba(11,11,11,0.10);
+    --good:           #006300;
+    --bad:            #d03b3b;
+    --fb:             #2a78d6;  /* categorical slot 1 — Facebook */
+    --ig:             #1baf7a;  /* categorical slot 2 — Instagram */
+    --metric-a:       #2a78d6;  /* reach */
+    --metric-b:       #4a3aa7;  /* views (slot 5) */
+    --wash-opacity:   0.10;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --page:           #0d0d0d;
+      --surface:        #1a1a19;
+      --text-primary:   #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted:     #898781;
+      --grid:           #2c2c2a;
+      --axis:           #383835;
+      --border:         rgba(255,255,255,0.10);
+      --good:           #0ca30c;
+      --bad:            #e66767;
+      --fb:             #3987e5;
+      --ig:             #199e70;
+      --metric-a:       #3987e5;
+      --metric-b:       #9085e9;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: var(--page);
+    color: var(--text-primary);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+    padding: 24px clamp(12px, 4vw, 40px) 60px;
+    max-width: 1180px;
+    margin: 0 auto;
+  }
+  header h1 { font-size: 20px; font-weight: 650; }
+  header p  { color: var(--text-secondary); margin-top: 2px; }
+
+  /* filter row */
+  .filters { display: flex; gap: 8px; align-items: center; margin: 18px 0 20px; flex-wrap: wrap; }
+  .filters .label { color: var(--text-muted); font-size: 13px; margin-right: 2px; }
+  .range-btn {
+    font: inherit; font-size: 13px; color: var(--text-secondary);
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 6px 12px; cursor: pointer;
+  }
+  .range-btn:hover { color: var(--text-primary); }
+  .range-btn[aria-pressed="true"] {
+    color: var(--text-primary); font-weight: 600;
+    border-color: var(--axis);
+  }
+  .range-btn[aria-pressed="true"]::before { content: "✓ "; font-weight: 700; }
+
+  /* stat tiles */
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+  .tile {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 14px 16px;
+  }
+  .tile .t-label { color: var(--text-secondary); font-size: 13px; display: flex; align-items: center; gap: 6px; }
+  .tile .t-label .key { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+  .tile .t-value { font-size: 28px; font-weight: 650; margin-top: 4px; }
+  .tile .t-delta { font-size: 13px; margin-top: 2px; color: var(--text-muted); }
+  .tile .t-delta .up   { color: var(--good); font-weight: 600; }
+  .tile .t-delta .down { color: var(--bad);  font-weight: 600; }
+
+  /* cards */
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px; min-width: 0;
+  }
+  .card.wide { grid-column: 1 / -1; }
+  @media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
+  .card h2 { font-size: 15px; font-weight: 650; }
+  .card .sub { color: var(--text-muted); font-size: 12.5px; margin: 2px 0 10px; }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 6px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; color: var(--text-secondary); font-size: 12.5px; }
+  .legend i { width: 14px; height: 3px; border-radius: 2px; display: inline-block; }
+  .chart { position: relative; }
+  .chart svg { display: block; width: 100%; height: auto; }
+  .empty { color: var(--text-muted); padding: 30px 0; text-align: center; }
+
+  /* tooltip */
+  .tip {
+    position: absolute; pointer-events: none; z-index: 5; display: none;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px 10px; box-shadow: 0 4px 14px rgba(0,0,0,.13); min-width: 130px;
+  }
+  .tip .tip-date { color: var(--text-muted); font-size: 12px; margin-bottom: 4px; }
+  .tip .row { display: flex; align-items: center; gap: 7px; font-size: 13px; margin-top: 2px; }
+  .tip .row i { width: 12px; height: 2.5px; border-radius: 2px; flex: none; }
+  .tip .row b { font-weight: 650; }
+  .tip .row span { color: var(--text-secondary); }
+
+  /* top posts table */
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th {
+    text-align: left; color: var(--text-muted); font-weight: 500; font-size: 12.5px;
+    border-bottom: 1px solid var(--grid); padding: 6px 10px 6px 0;
+  }
+  td { border-bottom: 1px solid var(--grid); padding: 8px 10px 8px 0; vertical-align: top; }
+  td.date { white-space: nowrap; }
+  #top-posts { overflow-x: auto; }
+  tr:last-child td { border-bottom: none; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .plat-chip { display: inline-flex; align-items: center; gap: 6px; color: var(--text-secondary); white-space: nowrap; }
+  .plat-chip i { width: 10px; height: 10px; border-radius: 3px; }
+  .caption { max-width: 420px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  td a { color: var(--metric-a); text-decoration: none; }
+  td a:hover { text-decoration: underline; }
+
+  #status { color: var(--text-muted); padding: 40px 0; text-align: center; }
+  #status.error { color: var(--bad); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Mamram Alumni Association — Social Media Dashboard</h1>
+  <p>Facebook &amp; Instagram growth and engagement · data refreshes weekly via the collector</p>
+</header>
+
+<div class="filters" id="filters" hidden>
+  <span class="label">Date range</span>
+  <button class="range-btn" data-days="90">Last 90 days</button>
+  <button class="range-btn" data-days="182">Last 6 months</button>
+  <button class="range-btn" data-days="365">Last 12 months</button>
+  <button class="range-btn" data-days="0" aria-pressed="true">All time</button>
+</div>
+
+<div id="status">Loading data from Airtable…</div>
+
+<main id="app" hidden>
+  <section class="tiles" id="tiles"></section>
+
+  <div class="grid">
+    <div class="card wide">
+      <h2>Follower growth</h2>
+      <div class="sub">Total followers per platform over time</div>
+      <div class="legend" id="lg-followers"></div>
+      <div class="chart" id="ch-followers"></div>
+    </div>
+
+    <div class="card">
+      <h2>Reach &amp; views — Instagram</h2>
+      <div class="sub">Trailing 28-day totals per weekly snapshot. Facebook equivalents are no longer provided by Meta’s API.</div>
+      <div class="legend" id="lg-reach"></div>
+      <div class="chart" id="ch-reach"></div>
+    </div>
+
+    <div class="card">
+      <h2>Engagement rate</h2>
+      <div class="sub">Monthly post interactions (likes + comments + shares + saves) ÷ followers, per platform</div>
+      <div class="legend" id="lg-engage"></div>
+      <div class="chart" id="ch-engage"></div>
+    </div>
+
+    <div class="card wide">
+      <h2>Top 5 posts by engagement</h2>
+      <div class="sub">Likes + comments + shares + saves, within the selected date range</div>
+      <div id="top-posts"></div>
+    </div>
+  </div>
+</main>
+
+<script src="config.js"></script>
+<script>
+"use strict";
+const CFG = window.DASHBOARD_CONFIG || {};
+const FB = "Facebook", IG = "Instagram";
+const COLOR = { [FB]: "var(--fb)", [IG]: "var(--ig)" };
+
+/* ---------------------------------------------------------- data loading */
+
+async function fetchAll(table) {
+  const out = [];
+  let offset;
+  do {
+    const url = new URL(`https://api.airtable.com/v0/${CFG.AIRTABLE_BASE_ID}/${encodeURIComponent(table)}`);
+    url.searchParams.set("pageSize", "100");
+    if (offset) url.searchParams.set("offset", offset);
+    const r = await fetch(url, { headers: { Authorization: `Bearer ${CFG.AIRTABLE_TOKEN}` } });
+    if (!r.ok) throw new Error(`Airtable ${table}: HTTP ${r.status}`);
+    const d = await r.json();
+    out.push(...d.records.map(rec => rec.fields));
+    offset = d.offset;
+  } while (offset);
+  return out;
+}
+
+/* Merge snapshots: if a Date+Platform exists from both API and Backfill, API wins. */
+function mergeSnapshots(rows) {
+  const byKey = new Map();
+  for (const r of rows) {
+    if (!r.Date || !r.Platform) continue;
+    const k = r.Date + "|" + r.Platform;
+    const prev = byKey.get(k);
+    if (!prev || (prev.Source === "Backfill" && r.Source === "API")) byKey.set(k, r);
+  }
+  return [...byKey.values()].sort((a, b) => a.Date < b.Date ? -1 : 1);
+}
+
+/* ------------------------------------------------------------ formatting */
+
+const fmt = n => n == null ? "—" : n.toLocaleString("en-US");
+const fmtCompact = n => n == null ? "—" :
+  n >= 1e6 ? (n / 1e6).toFixed(1) + "M" :
+  n >= 10000 ? (n / 1e3).toFixed(1) + "K" : n.toLocaleString("en-US");
+const fmtDate = iso => new Date(iso + "T00:00:00").toLocaleDateString("en-GB",
+  { day: "numeric", month: "short", year: "numeric" });
+const fmtMonth = iso => new Date(iso + "T00:00:00").toLocaleDateString("en-GB",
+  { month: "short", year: "2-digit" });
+
+/* ------------------------------------------------------- SVG line charts */
+
+function niceTicks(max) {
+  if (max <= 0) return [0, 1];
+  const step = Math.pow(10, Math.floor(Math.log10(max)));
+  const s = max / step >= 5 ? 2 * step : max / step >= 2.5 ? step : step / 2;
+  const ticks = [];
+  for (let v = 0; v <= max + 1e-9; v += s) ticks.push(v);
+  if (ticks[ticks.length - 1] < max) ticks.push(ticks[ticks.length - 1] + s);
+  return ticks;
+}
+
+/**
+ * series: [{name, color, points: [{x: isoDate, y: number}]}]
+ * opts: {valueFmt, area}
+ */
+function lineChart(el, series, opts = {}) {
+  el.textContent = "";
+  const valueFmt = opts.valueFmt || fmt;
+  const tickFmt = opts.valueFmt || (v =>
+    v >= 1000 ? (v / 1000).toFixed(v % 1000 ? 1 : 0) + "K" : v.toLocaleString("en-US"));
+  const live = series.filter(s => s.points.length > 0);
+  if (!live.length || Math.max(...live.map(s => s.points.length)) < 2) {
+    const d = document.createElement("div");
+    d.className = "empty";
+    d.textContent = "Not enough data in this range yet.";
+    el.appendChild(d);
+    return;
+  }
+  const W = 940, H = 260, padL = 46, padR = 74, padT = 10, padB = 26;
+  const xs = [...new Set(live.flatMap(s => s.points.map(p => p.x)))].sort();
+  const t0 = new Date(xs[0]).getTime(), t1 = new Date(xs[xs.length - 1]).getTime() || t0 + 1;
+  const yMax = Math.max(...live.flatMap(s => s.points.map(p => p.y)), 1);
+  const ticks = niceTicks(yMax);
+  const yTop = ticks[ticks.length - 1];
+  const X = iso => padL + (new Date(iso).getTime() - t0) / Math.max(t1 - t0, 1) * (W - padL - padR);
+  const Y = v => padT + (1 - v / yTop) * (H - padT - padB);
+
+  const ns = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  const add = (parent, tag, attrs, text) => {
+    const n = document.createElementNS(ns, tag);
+    for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+    if (text != null) n.textContent = text;
+    parent.appendChild(n);
+    return n;
+  };
+
+  // gridlines + y ticks (hairline, recessive)
+  for (const v of ticks) {
+    add(svg, "line", { x1: padL, x2: W - padR, y1: Y(v), y2: Y(v),
+      stroke: v === 0 ? "var(--axis)" : "var(--grid)", "stroke-width": 1 });
+    add(svg, "text", { x: padL - 8, y: Y(v) + 4, "text-anchor": "end",
+      "font-size": 11, fill: "var(--text-muted)" }, tickFmt(v));
+  }
+  // x labels: ~6 evenly spaced dates
+  const nLab = Math.min(6, xs.length);
+  for (let i = 0; i < nLab; i++) {
+    const x = xs[Math.round(i * (xs.length - 1) / Math.max(nLab - 1, 1))];
+    const shortRange = (t1 - t0) < 200 * 86400000;
+    add(svg, "text", { x: X(x), y: H - 8, "text-anchor": "middle",
+      "font-size": 11, fill: "var(--text-muted)" },
+      opts.monthly ? fmtMonth(x)
+      : new Date(x).toLocaleDateString("en-GB",
+          shortRange ? { day: "numeric", month: "short" } : { month: "short", year: "2-digit" }));
+  }
+
+  for (const s of live) {
+    const pts = s.points.map(p => [X(p.x), Y(p.y)]);
+    const dAttr = pts.map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join(" ");
+    if (opts.area && live.length === 1) {
+      add(svg, "path", { d: dAttr + ` L${pts[pts.length - 1][0]} ${Y(0)} L${pts[0][0]} ${Y(0)} Z`,
+        fill: s.color, opacity: "0.10", stroke: "none" });
+    }
+    add(svg, "path", { d: dAttr, fill: "none", stroke: s.color,
+      "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" });
+    // end marker with surface ring + direct end label
+    const last = pts[pts.length - 1];
+    add(svg, "circle", { cx: last[0], cy: last[1], r: 6, fill: "var(--surface)" });
+    add(svg, "circle", { cx: last[0], cy: last[1], r: 4, fill: s.color });
+    add(svg, "text", { x: last[0] + 9, y: last[1] + 4, "font-size": 12,
+      "font-weight": 600, fill: "var(--text-primary)" },
+      valueFmt(s.points[s.points.length - 1].y));
+  }
+  // de-collide end labels (nudge apart when overlapping)
+  const labels = [...svg.querySelectorAll("text")].filter(t => t.getAttribute("font-weight") === "600");
+  labels.sort((a, b) => +a.getAttribute("y") - +b.getAttribute("y"));
+  for (let i = 1; i < labels.length; i++) {
+    const prev = +labels[i - 1].getAttribute("y"), cur = +labels[i].getAttribute("y");
+    if (cur - prev < 14) labels[i].setAttribute("y", prev + 14);
+  }
+
+  // crosshair + tooltip
+  const cross = add(svg, "line", { y1: padT, y2: H - padB, stroke: "var(--axis)",
+    "stroke-width": 1, visibility: "hidden" });
+  const tip = document.createElement("div");
+  tip.className = "tip";
+  el.appendChild(svg);
+  el.appendChild(tip);
+
+  svg.addEventListener("pointermove", ev => {
+    const rect = svg.getBoundingClientRect();
+    const mx = (ev.clientX - rect.left) / rect.width * W;
+    if (mx < padL || mx > W - padR) { hide(); return; }
+    let best = xs[0], bd = Infinity;
+    for (const x of xs) { const d = Math.abs(X(x) - mx); if (d < bd) { bd = d; best = x; } }
+    cross.setAttribute("x1", X(best)); cross.setAttribute("x2", X(best));
+    cross.setAttribute("visibility", "visible");
+    tip.textContent = "";
+    const dt = document.createElement("div");
+    dt.className = "tip-date";
+    dt.textContent = opts.monthly ? fmtMonth(best) : fmtDate(best);
+    tip.appendChild(dt);
+    for (const s of live) {
+      const p = s.points.find(q => q.x === best);
+      if (!p) continue;
+      const row = document.createElement("div"); row.className = "row";
+      const key = document.createElement("i"); key.style.background = s.color;
+      const val = document.createElement("b"); val.textContent = valueFmt(p.y);
+      const name = document.createElement("span"); name.textContent = s.name;
+      row.append(key, val, name);
+      tip.appendChild(row);
+    }
+    tip.style.display = "block";
+    const px = X(best) / W * rect.width;
+    tip.style.left = Math.min(px + 12, rect.width - tip.offsetWidth - 4) + "px";
+    tip.style.top = "8px";
+  });
+  const hide = () => { tip.style.display = "none"; cross.setAttribute("visibility", "hidden"); };
+  svg.addEventListener("pointerleave", hide);
+}
+
+function legend(el, series) {
+  el.textContent = "";
+  if (series.length < 2) return;
+  for (const s of series) {
+    const span = document.createElement("span");
+    const i = document.createElement("i");
+    i.style.background = s.color;
+    span.append(i, document.createTextNode(s.name));
+    el.appendChild(span);
+  }
+}
+
+/* --------------------------------------------------------------- render */
+
+let SNAPSHOTS = [], POSTS = [];
+
+function render(rangeDays) {
+  const cutoff = rangeDays > 0
+    ? new Date(Date.now() - rangeDays * 86400000).toISOString().slice(0, 10)
+    : "0000";
+  const snaps = SNAPSHOTS.filter(s => s.Date >= cutoff);
+  const posts = POSTS.filter(p => p.Published && p.Published >= cutoff);
+
+  /* tiles */
+  const tiles = document.getElementById("tiles");
+  tiles.textContent = "";
+  const engagementOf = p => (p.Likes || 0) + (p.Comments || 0) + (p.Shares || 0) + (p.Saves || 0);
+  for (const plat of [FB, IG]) {
+    const rows = snaps.filter(s => s.Platform === plat && s.Followers != null);
+    const cur = rows[rows.length - 1], first = rows[0];
+    const delta = cur && first ? cur.Followers - first.Followers : null;
+    tiles.appendChild(tile(`${plat} followers`, COLOR[plat],
+      cur ? fmt(cur.Followers) : "—",
+      delta == null ? "" : delta, "in range"));
+  }
+  const igReach = snaps.filter(s => s.Platform === IG && s.Reach != null).at(-1);
+  tiles.appendChild(tile("Instagram reach (28 days)", COLOR[IG],
+    igReach ? fmt(igReach.Reach) : "—", null,
+    igReach ? "as of " + fmtDate(igReach.Date) : "no data yet"));
+  const nPosts = posts.length;
+  const totEng = posts.reduce((a, p) => a + engagementOf(p), 0);
+  tiles.appendChild(tile("Posts in range", null, fmt(nPosts), null,
+    fmt(totEng) + " total interactions"));
+
+  /* follower growth */
+  const followerSeries = [FB, IG].map(plat => ({
+    name: plat, color: COLOR[plat],
+    points: snaps.filter(s => s.Platform === plat && s.Followers != null)
+                 .map(s => ({ x: s.Date, y: s.Followers })),
+  }));
+  legend(document.getElementById("lg-followers"), followerSeries);
+  lineChart(document.getElementById("ch-followers"), followerSeries);
+
+  /* reach & views (IG only — FB metrics deprecated by Meta) */
+  const igSnaps = snaps.filter(s => s.Platform === IG);
+  const reachSeries = [
+    { name: "Reach", color: "var(--metric-a)",
+      points: igSnaps.filter(s => s.Reach != null).map(s => ({ x: s.Date, y: s.Reach })) },
+    { name: "Views", color: "var(--metric-b)",
+      points: igSnaps.filter(s => s.Impressions != null).map(s => ({ x: s.Date, y: s.Impressions })) },
+  ];
+  legend(document.getElementById("lg-reach"), reachSeries);
+  lineChart(document.getElementById("ch-reach"), reachSeries);
+
+  /* engagement rate: monthly interactions ÷ followers at month end */
+  const engSeries = [FB, IG].map(plat => {
+    const byMonth = new Map();
+    for (const p of posts) {
+      if (p.Platform !== plat) continue;
+      const m = p.Published.slice(0, 7);
+      byMonth.set(m, (byMonth.get(m) || 0) + engagementOf(p));
+    }
+    const fAll = SNAPSHOTS.filter(s => s.Platform === plat && s.Followers != null);
+    const points = [...byMonth.keys()].sort().map(m => {
+      // followers as of month end; months before the first snapshot fall
+      // back to the earliest known count so the point isn't dropped
+      const followers = (fAll.filter(s => s.Date <= m + "-31").at(-1) || fAll[0])?.Followers;
+      return followers ? { x: m + "-15", y: +(byMonth.get(m) / followers * 100).toFixed(2) } : null;
+    }).filter(Boolean);
+    return { name: plat, color: COLOR[plat], points };
+  });
+  legend(document.getElementById("lg-engage"), engSeries);
+  lineChart(document.getElementById("ch-engage"), engSeries,
+    { valueFmt: v => v.toFixed(1) + "%", monthly: true });
+
+  /* top posts */
+  const wrap = document.getElementById("top-posts");
+  wrap.textContent = "";
+  const top = [...posts].sort((a, b) => engagementOf(b) - engagementOf(a)).slice(0, 5);
+  if (!top.length) {
+    const d = document.createElement("div");
+    d.className = "empty"; d.textContent = "No posts in this range.";
+    wrap.appendChild(d);
+  } else {
+    const table = document.createElement("table");
+    const thead = table.createTHead().insertRow();
+    for (const [h, cls] of [["Platform"], ["Date"], ["Type"], ["Caption"],
+        ["Likes", "num"], ["Comments", "num"], ["Shares", "num"], ["Saves", "num"],
+        ["Total", "num"], [""]]) {
+      const th = document.createElement("th");
+      th.textContent = h;
+      if (cls) th.className = cls;
+      thead.appendChild(th);
+    }
+    const tbody = table.createTBody();
+    for (const p of top) {
+      const tr = tbody.insertRow();
+      const chip = document.createElement("span");
+      chip.className = "plat-chip";
+      const dot = document.createElement("i");
+      dot.style.background = COLOR[p.Platform] || "var(--text-muted)";
+      chip.append(dot, document.createTextNode(p.Platform || "—"));
+      tr.insertCell().appendChild(chip);
+      const dateTd = tr.insertCell();
+      dateTd.className = "date";
+      dateTd.textContent = p.Published ? fmtDate(p.Published) : "—";
+      tr.insertCell().textContent = p.Type || "—";
+      const cap = tr.insertCell();
+      cap.className = "caption";
+      cap.dir = "auto";
+      cap.textContent = p.Caption || "—";
+      cap.title = p.Caption || "";
+      for (const k of ["Likes", "Comments", "Shares", "Saves"]) {
+        const td = tr.insertCell(); td.className = "num"; td.textContent = fmt(p[k]);
+      }
+      const tot = tr.insertCell(); tot.className = "num";
+      const b = document.createElement("b"); b.textContent = fmt(engagementOf(p));
+      tot.appendChild(b);
+      const linkTd = tr.insertCell();
+      if (p.Permalink) {
+        const a = document.createElement("a");
+        a.href = p.Permalink; a.target = "_blank"; a.rel = "noopener";
+        a.textContent = "View ↗";
+        linkTd.appendChild(a);
+      }
+    }
+    wrap.appendChild(table);
+  }
+}
+
+function tile(label, keyColor, value, delta, deltaSuffix) {
+  const d = document.createElement("div");
+  d.className = "tile";
+  const l = document.createElement("div"); l.className = "t-label";
+  if (keyColor) {
+    const k = document.createElement("i"); k.className = "key";
+    k.style.background = keyColor; l.appendChild(k);
+  }
+  l.appendChild(document.createTextNode(label));
+  const v = document.createElement("div"); v.className = "t-value"; v.textContent = value;
+  const dd = document.createElement("div"); dd.className = "t-delta";
+  if (typeof delta === "number") {
+    const s = document.createElement("span");
+    s.className = delta >= 0 ? "up" : "down";
+    s.textContent = (delta >= 0 ? "▲ +" : "▼ ") + delta.toLocaleString("en-US");
+    dd.append(s, document.createTextNode(" " + deltaSuffix));
+  } else if (deltaSuffix) {
+    dd.textContent = deltaSuffix;
+  }
+  d.append(l, v, dd);
+  return d;
+}
+
+/* ----------------------------------------------------------------- init */
+
+document.getElementById("filters").addEventListener("click", ev => {
+  const btn = ev.target.closest(".range-btn");
+  if (!btn) return;
+  for (const b of document.querySelectorAll(".range-btn")) b.setAttribute("aria-pressed", "false");
+  btn.setAttribute("aria-pressed", "true");
+  render(+btn.dataset.days);
+});
+
+(async () => {
+  const status = document.getElementById("status");
+  if (!CFG.AIRTABLE_TOKEN || CFG.AIRTABLE_TOKEN.includes("XXXX")) {
+    status.className = "error";
+    status.textContent = "Dashboard is not configured: copy config.example.js to config.js and fill in the Airtable read-only token and base ID.";
+    return;
+  }
+  try {
+    const [snapRows, postRows] = await Promise.all([fetchAll("Snapshots"), fetchAll("Posts")]);
+    SNAPSHOTS = mergeSnapshots(snapRows);
+    POSTS = postRows;
+    status.hidden = true;
+    document.getElementById("filters").hidden = false;
+    document.getElementById("app").hidden = false;
+    render(0);
+  } catch (e) {
+    status.className = "error";
+    status.textContent = "Could not load data from Airtable: " + e.message +
+      " — check the token and base ID in config.js.";
+  }
+})();
+</script>
+</body>
+</html>

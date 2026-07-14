@@ -1,0 +1,35 @@
+name: Collect social metrics
+
+on:
+  schedule:
+    # Every Monday 06:00 UTC (09:00 Israel time)
+    - cron: "0 6 * * 1"
+  workflow_dispatch: {}
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # collector.py uses only the Python standard library — nothing to install
+      - name: Run collector
+        env:
+          META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+          FB_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
+          IG_BUSINESS_ACCOUNT_ID: ${{ secrets.IG_BUSINESS_ACCOUNT_ID }}
+          META_APP_ID: ${{ secrets.META_APP_ID }}
+          META_APP_SECRET: ${{ secrets.META_APP_SECRET }}
+          AIRTABLE_TOKEN: ${{ secrets.AIRTABLE_TOKEN }}
+          AIRTABLE_BASE_ID: ${{ secrets.AIRTABLE_BASE_ID }}
+        run: python3 collector.py
+
+      - name: Explain failure (for non-technical maintainers)
+        if: failure()
+        run: |
+          echo "::error::The weekly metrics collection FAILED. Most common cause: the Meta access token expired (it lasts ~60 days). See 'Renewing the Meta token' in the README for step-by-step instructions. After renewing, update the META_ACCESS_TOKEN repository secret and re-run this workflow from the Actions tab."
