@@ -18,10 +18,6 @@ Thumbs.db
 # Local scratch
 *.log
 
-# Dashboard config holds an Airtable token — replace with a read-only token
-# and remove this line before publishing to GitHub Pages
-docs/config.js
-
 # Internal analytics exports — kept locally, not published in the repo
 csv/
 
