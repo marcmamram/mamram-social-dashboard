@@ -52,11 +52,14 @@ two new rows (Facebook + Instagram) dated the most recent Monday.
   project folder (copy the variable names from the list below):
   `python3 collector.py`
 
-## Routine task 3 — renew the Meta token (every ~60 days)
+## Routine task 3 — renew the Meta token (only if a run fails)
 
-The Meta access token expires roughly every 60 days. The weekly run warns in
-its log when fewer than 14 days remain, and **fails loudly** once the token is
-dead. To renew:
+The stored token is a **Page access token with no expiry date**, so under
+normal circumstances there is nothing to renew. It can still die in rare
+cases — the Facebook account that created it changes its password, gets
+logged out by a Facebook security check, or loses admin access to the Page.
+If that happens the weekly run **fails loudly** with a message pointing here.
+To create a fresh token:
 
 1. Go to <https://developers.facebook.com/tools/explorer/> and log in with the
    Facebook account that manages the עמותת בוגרי ממר"ם Page.
@@ -71,12 +74,17 @@ dead. To renew:
    <https://developers.facebook.com/tools/debug/accesstoken/>, paste the
    token, press **Debug**, then press **Extend Access Token** (bottom of the
    page). Copy the new long-lived token it gives you.
-6. Put the new token where the collector reads it:
+6. Turn it into a **never-expiring Page token** (so you don't have to do this
+   again in 60 days): back in the Graph API Explorer, paste the extended token
+   into the **Access Token** box, set the query field to
+   `147353218653013?fields=access_token`, press **Submit**, and copy the
+   `access_token` value from the response. That's the token to store.
+7. Put the new token where the collector reads it:
    - GitHub: repository → **Settings → Secrets and variables → Actions** →
      edit **META_ACCESS_TOKEN** → paste → save.
    - Local `.env` file (if you run manually): replace the `META_ACCESS_TOKEN`
      value.
-7. Re-run the workflow (Routine task 2) and confirm it's green.
+8. Re-run the workflow (Routine task 2) and confirm it is green.
 
 ---
 
@@ -84,7 +92,7 @@ dead. To renew:
 
 | Name | What it is |
 |---|---|
-| `META_ACCESS_TOKEN` | Long-lived Meta user token (see renewal steps above) |
+| `META_ACCESS_TOKEN` | Never-expiring Meta Page token (see renewal steps above if it ever dies) |
 | `FB_PAGE_ID` | Facebook Page ID |
 | `IG_BUSINESS_ACCOUNT_ID` | Instagram Business account ID |
 | `META_APP_ID` / `META_APP_SECRET` | The "Mamram Social" Meta app — used only to check token expiry and warn early (optional but recommended) |

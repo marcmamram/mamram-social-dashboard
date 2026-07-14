@@ -135,7 +135,9 @@ def check_meta_token(user_token):
         die("The Meta access token is INVALID or EXPIRED. No metrics can be "
             "collected until it is renewed — see 'Renewing the Meta token' in the README.")
     expires = d.get("expires_at")
-    if expires:
+    if not expires:
+        log("Meta token OK (a Page token with no expiry date).")
+    else:
         days_left = (dt.datetime.fromtimestamp(expires) - dt.datetime.now()).days
         expiry_date = dt.datetime.fromtimestamp(expires).date()
         if days_left <= TOKEN_WARN_DAYS:
