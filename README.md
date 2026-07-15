@@ -146,8 +146,12 @@ private (not part of v1).
 - **Instagram history has three different start dates**, set by what Meta's
   API exposes: reach/views/profile-views were backfilled to **Aug 2024**
   (`backfill_instagram.py`, already run), the full post archive goes back to
-  the first post (**Mar 2022**), but follower counts only start **June 2026**
-  — Meta refuses to report follower history older than 30 days.
+  the first post (**Mar 2022**), but Meta refuses to report follower history
+  older than 30 days. IG follower counts **between July 2025 and June 2026
+  are linear estimates** anchored to one verified data point (2025-07-27:
+  1,559 followers, from a screenshot) — the trend is real, weekly wiggles are
+  not. Counts before July 2025 are blank (no data source exists), and counts
+  from mid-June 2026 onward are real.
 
 ## Files
 
