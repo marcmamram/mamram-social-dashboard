@@ -143,14 +143,19 @@ private (not part of v1).
   only contains *new follows per day*, so history was reconstructed backwards
   from the follower count on 2026-07-14; unfollows aren't in the export, so
   older totals may be slightly high. The trend shape is correct.
-- Instagram history starts 2026-07-14 (no CSV exports existed for IG).
+- **Instagram history has three different start dates**, set by what Meta's
+  API exposes: reach/views/profile-views were backfilled to **Aug 2024**
+  (`backfill_instagram.py`, already run), the full post archive goes back to
+  the first post (**Mar 2022**), but follower counts only start **June 2026**
+  — Meta refuses to report follower history older than 30 days.
 
 ## Files
 
 | File | Purpose |
 |---|---|
 | `collector.py` | Weekly metrics collector (no dependencies beyond Python 3) |
-| `backfill.py` | One-time historical CSV import (already run) |
+| `backfill.py` | One-time historical CSV import, Facebook (already run) |
+| `backfill_instagram.py` | One-time Instagram history pull from the API (already run) |
 | `csv/` | The original Meta Business Suite exports (Facebook, 2024-01 → 2026-07). Kept on the maintainer's machine only — not committed to the public repo |
 | `docs/index.html` | The dashboard page |
 | `docs/config.js` | Dashboard's Airtable credentials (public, read-only) |
