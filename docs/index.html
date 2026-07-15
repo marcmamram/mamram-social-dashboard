@@ -21,7 +21,6 @@
     --ig:             #1baf7a;  /* categorical slot 2 — Instagram */
     --metric-a:       #2a78d6;  /* reach */
     --metric-b:       #4a3aa7;  /* views (slot 5) */
-    --wash-opacity:   0.10;
   }
   @media (prefers-color-scheme: dark) {
     :root {
@@ -53,24 +52,32 @@
   }
   header h1 { font-size: 20px; font-weight: 650; }
   header p  { color: var(--text-secondary); margin-top: 2px; }
+  #print-meta { display: none; color: var(--text-secondary); margin-top: 4px; }
 
   /* filter row */
   .filters { display: flex; gap: 8px; align-items: center; margin: 18px 0 20px; flex-wrap: wrap; }
   .filters .label { color: var(--text-muted); font-size: 13px; margin-right: 2px; }
-  .range-btn {
+  .range-btn, .chip-btn, .icon-btn {
     font: inherit; font-size: 13px; color: var(--text-secondary);
     background: var(--surface); border: 1px solid var(--border);
     border-radius: 8px; padding: 6px 12px; cursor: pointer;
   }
-  .range-btn:hover { color: var(--text-primary); }
-  .range-btn[aria-pressed="true"] {
-    color: var(--text-primary); font-weight: 600;
-    border-color: var(--axis);
+  .range-btn:hover, .chip-btn:hover, .icon-btn:hover { color: var(--text-primary); }
+  .range-btn[aria-pressed="true"], .chip-btn[aria-pressed="true"] {
+    color: var(--text-primary); font-weight: 600; border-color: var(--axis);
   }
   .range-btn[aria-pressed="true"]::before { content: "✓ "; font-weight: 700; }
+  #custom-inputs { display: inline-flex; gap: 6px; align-items: center; }
+  #custom-inputs[hidden] { display: none; }
+  #custom-inputs input {
+    font: inherit; font-size: 13px; color: var(--text-primary);
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 5px 8px;
+  }
+  .filters .spacer { flex: 1; }
 
   /* stat tiles */
-  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
   .tile {
     background: var(--surface); border: 1px solid var(--border);
     border-radius: 12px; padding: 14px 16px;
@@ -79,8 +86,8 @@
   .tile .t-label .key { width: 10px; height: 10px; border-radius: 3px; flex: none; }
   .tile .t-value { font-size: 28px; font-weight: 650; margin-top: 4px; }
   .tile .t-delta { font-size: 13px; margin-top: 2px; color: var(--text-muted); }
-  .tile .t-delta .up   { color: var(--good); font-weight: 600; }
-  .tile .t-delta .down { color: var(--bad);  font-weight: 600; }
+  .up   { color: var(--good); font-weight: 600; }
+  .down { color: var(--bad);  font-weight: 600; }
 
   /* cards */
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
@@ -95,6 +102,7 @@
   .legend { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 6px; }
   .legend span { display: inline-flex; align-items: center; gap: 6px; color: var(--text-secondary); font-size: 12.5px; }
   .legend i { width: 14px; height: 3px; border-radius: 2px; display: inline-block; }
+  .legend i.sq { width: 11px; height: 11px; border-radius: 3px; }
   .chart { position: relative; }
   .chart svg { display: block; width: 100%; height: auto; }
   .empty { color: var(--text-muted); padding: 30px 0; text-align: center; }
@@ -108,28 +116,79 @@
   .tip .tip-date { color: var(--text-muted); font-size: 12px; margin-bottom: 4px; }
   .tip .row { display: flex; align-items: center; gap: 7px; font-size: 13px; margin-top: 2px; }
   .tip .row i { width: 12px; height: 2.5px; border-radius: 2px; flex: none; }
+  .tip .row i.sq { width: 10px; height: 10px; border-radius: 3px; }
   .tip .row b { font-weight: 650; }
   .tip .row span { color: var(--text-secondary); }
 
-  /* top posts table */
+  /* tables */
   table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
   th {
     text-align: left; color: var(--text-muted); font-weight: 500; font-size: 12.5px;
-    border-bottom: 1px solid var(--grid); padding: 6px 10px 6px 0;
+    border-bottom: 1px solid var(--grid); padding: 6px 10px 6px 0; white-space: nowrap;
   }
+  th.sortable { cursor: pointer; user-select: none; }
+  th.sortable:hover { color: var(--text-primary); }
+  th .arrow { font-size: 10px; }
   td { border-bottom: 1px solid var(--grid); padding: 8px 10px 8px 0; vertical-align: top; }
-  td.date { white-space: nowrap; }
-  #top-posts { overflow-x: auto; }
   tr:last-child td { border-bottom: none; }
   td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  td.date { white-space: nowrap; }
+  .table-scroll { overflow-x: auto; }
+  #all-posts-body { max-height: 520px; overflow-y: auto; }
   .plat-chip { display: inline-flex; align-items: center; gap: 6px; color: var(--text-secondary); white-space: nowrap; }
-  .plat-chip i { width: 10px; height: 10px; border-radius: 3px; }
+  .plat-chip i { width: 10px; height: 10px; border-radius: 3px; flex: none; }
   .caption { max-width: 420px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   td a { color: var(--metric-a); text-decoration: none; }
   td a:hover { text-decoration: underline; }
+  tr.clickable { cursor: pointer; }
+  tr.clickable:hover td { background: rgba(127,127,127,0.08); }
+
+  /* post modal */
+  .overlay {
+    position: fixed; inset: 0; z-index: 20; background: rgba(0,0,0,.45);
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+  }
+  .modal {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    width: min(980px, 100%); max-height: 88vh; display: flex; flex-direction: column;
+  }
+  .modal-head { display: flex; align-items: center; gap: 10px; padding: 14px 18px;
+    border-bottom: 1px solid var(--grid); }
+  .modal-head h3 { font-size: 15px; font-weight: 650; flex: 1; min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .modal-head button { font-size: 16px; line-height: 1; }
+  .modal-body { display: grid; grid-template-columns: 400px 1fr; overflow: hidden; flex: 1; }
+  @media (max-width: 760px) { .modal-body { grid-template-columns: 1fr; overflow-y: auto; } }
+  .m-embed { overflow-y: auto; padding: 14px; border-right: 1px solid var(--grid); background: var(--page); }
+  .m-embed iframe, .m-embed blockquote { max-width: 100% !important; min-width: 0 !important; margin: 0 auto !important; }
+  .m-stats { overflow-y: auto; padding: 16px 18px; }
+  .m-stats h4 { font-size: 13px; color: var(--text-muted); font-weight: 600;
+    text-transform: uppercase; letter-spacing: .04em; margin: 14px 0 8px; }
+  .m-stats h4:first-child { margin-top: 0; }
+  .stat-row { display: flex; justify-content: space-between; padding: 5px 0;
+    border-bottom: 1px solid var(--grid); font-size: 13.5px; }
+  .stat-row:last-child { border-bottom: none; }
+  .stat-row b { font-variant-numeric: tabular-nums; }
+  .cmp-row { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0;
+    border-bottom: 1px solid var(--grid); font-size: 13.5px; align-items: baseline; }
+  .cmp-row > span:first-child { color: var(--text-secondary); }
+  .m-links { margin-top: 14px; }
+  .m-links a { color: var(--metric-a); text-decoration: none; font-size: 13.5px; }
 
   #status { color: var(--text-muted); padding: 40px 0; text-align: center; }
   #status.error { color: var(--bad); }
+
+  /* ------------------------------------------------ print report mode */
+  @media print {
+    body { background: #fff; padding: 0; max-width: none; font-size: 12px; }
+    .filters, #card-all-posts, .tip, .overlay { display: none !important; }
+    #print-meta { display: block; }
+    .tiles { grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .grid { display: block; }
+    .card { break-inside: avoid; page-break-inside: avoid; margin-top: 10px; border: 1px solid #ccc; }
+    .tile { border: 1px solid #ccc; }
+    a { text-decoration: none; color: inherit; }
+  }
 </style>
 </head>
 <body>
@@ -137,6 +196,7 @@
 <header>
   <h1>Mamram Alumni Association — Social Media Dashboard</h1>
   <p>Facebook &amp; Instagram growth and engagement · data refreshes weekly via the collector</p>
+  <p id="print-meta"></p>
 </header>
 
 <div class="filters" id="filters" hidden>
@@ -145,6 +205,14 @@
   <button class="range-btn" data-days="182">Last 6 months</button>
   <button class="range-btn" data-days="365">Last 12 months</button>
   <button class="range-btn" data-days="0" aria-pressed="true">All time</button>
+  <button class="range-btn" id="custom-btn">Custom…</button>
+  <span id="custom-inputs" hidden>
+    <input type="date" id="date-from" aria-label="From date">
+    <span class="label">to</span>
+    <input type="date" id="date-to" aria-label="To date">
+  </span>
+  <span class="spacer"></span>
+  <button class="icon-btn" id="print-btn" title="Print a report of the current view">🖨 Print report</button>
 </div>
 
 <div id="status">Loading data from Airtable…</div>
@@ -158,6 +226,13 @@
       <div class="sub">Total followers per platform over time</div>
       <div class="legend" id="lg-followers"></div>
       <div class="chart" id="ch-followers"></div>
+    </div>
+
+    <div class="card wide">
+      <h2>New followers</h2>
+      <div class="sub" id="sub-adds">Net follower change per week</div>
+      <div class="legend" id="lg-adds"></div>
+      <div class="chart" id="ch-adds"></div>
     </div>
 
     <div class="card">
@@ -174,10 +249,36 @@
       <div class="chart" id="ch-engage"></div>
     </div>
 
+    <div class="card">
+      <h2>Format performance</h2>
+      <div class="sub">Average interactions per post by format, posts in range · hover for post counts</div>
+      <div class="legend" id="lg-format"></div>
+      <div class="chart" id="ch-format"></div>
+    </div>
+
+    <div class="card">
+      <h2>Best day to post</h2>
+      <div class="sub">Average interactions per post by publish day, posts in range</div>
+      <div class="legend" id="lg-weekday"></div>
+      <div class="chart" id="ch-weekday"></div>
+    </div>
+
     <div class="card wide">
       <h2>Top 5 posts by engagement</h2>
-      <div class="sub">Likes + comments + shares + saves, within the selected date range</div>
+      <div class="sub">Likes + comments + shares + saves, within the selected date range · click a post for details</div>
       <div id="top-posts"></div>
+    </div>
+
+    <div class="card wide" id="card-all-posts">
+      <h2>All posts</h2>
+      <div class="sub">Every post in the selected range · click a column header to sort, click a post for details</div>
+      <div class="filters" style="margin: 4px 0 10px;">
+        <button class="chip-btn" data-plat="All" aria-pressed="true">All</button>
+        <button class="chip-btn" data-plat="Facebook">Facebook</button>
+        <button class="chip-btn" data-plat="Instagram">Instagram</button>
+        <span class="label" id="posts-count"></span>
+      </div>
+      <div id="all-posts"></div>
     </div>
   </div>
 </main>
@@ -188,6 +289,7 @@
 const CFG = window.DASHBOARD_CONFIG || {};
 const FB = "Facebook", IG = "Instagram";
 const COLOR = { [FB]: "var(--fb)", [IG]: "var(--ig)" };
+const ENG = p => (p.Likes || 0) + (p.Comments || 0) + (p.Shares || 0) + (p.Saves || 0);
 
 /* ---------------------------------------------------------- data loading */
 
@@ -222,15 +324,38 @@ function mergeSnapshots(rows) {
 /* ------------------------------------------------------------ formatting */
 
 const fmt = n => n == null ? "—" : n.toLocaleString("en-US");
-const fmtCompact = n => n == null ? "—" :
-  n >= 1e6 ? (n / 1e6).toFixed(1) + "M" :
-  n >= 10000 ? (n / 1e3).toFixed(1) + "K" : n.toLocaleString("en-US");
 const fmtDate = iso => new Date(iso + "T00:00:00").toLocaleDateString("en-GB",
   { day: "numeric", month: "short", year: "numeric" });
 const fmtMonth = iso => new Date(iso + "T00:00:00").toLocaleDateString("en-GB",
   { month: "short", year: "2-digit" });
+const addDays = (iso, n) => {
+  const d = new Date(iso + "T00:00:00Z");
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+};
+const todayISO = () => new Date().toISOString().slice(0, 10);
 
-/* ------------------------------------------------------- SVG line charts */
+function pctChip(cur, prev, suffix) {
+  const wrap = document.createElement("span");
+  if (prev == null || cur == null || prev === 0) return wrap;
+  const pct = (cur - prev) / prev * 100;
+  const s = document.createElement("span");
+  s.className = pct >= 0 ? "up" : "down";
+  s.textContent = (pct >= 0 ? "▲ +" : "▼ ") + Math.abs(pct).toFixed(0) + "%";
+  wrap.append(s, document.createTextNode(" " + suffix));
+  return wrap;
+}
+
+/* ------------------------------------------------------------ SVG shared */
+
+const NS = "http://www.w3.org/2000/svg";
+function svgAdd(parent, tag, attrs, text) {
+  const n = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+  if (text != null) n.textContent = text;
+  parent.appendChild(n);
+  return n;
+}
 
 function niceTicks(max) {
   if (max <= 0) return [0, 1];
@@ -242,21 +367,66 @@ function niceTicks(max) {
   return ticks;
 }
 
-/**
- * series: [{name, color, points: [{x: isoDate, y: number}]}]
- * opts: {valueFmt, area}
- */
+const tickNum = v =>
+  v >= 1000 ? (v / 1000).toFixed(v % 1000 ? 1 : 0) + "K" : v.toLocaleString("en-US");
+
+function emptyNote(el) {
+  const d = document.createElement("div");
+  d.className = "empty";
+  d.textContent = "Not enough data in this range yet.";
+  el.appendChild(d);
+}
+
+function makeTip(el) {
+  const tip = document.createElement("div");
+  tip.className = "tip";
+  el.appendChild(tip);
+  return tip;
+}
+
+function tipRows(tip, title, rows, square) {
+  tip.textContent = "";
+  const dt = document.createElement("div");
+  dt.className = "tip-date";
+  dt.textContent = title;
+  tip.appendChild(dt);
+  for (const r of rows) {
+    const row = document.createElement("div");
+    row.className = "row";
+    const key = document.createElement("i");
+    if (square) key.className = "sq";
+    key.style.background = r.color;
+    const val = document.createElement("b");
+    val.textContent = r.value;
+    const name = document.createElement("span");
+    name.textContent = r.name;
+    row.append(key, val, name);
+    tip.appendChild(row);
+  }
+}
+
+function legend(el, series, square) {
+  el.textContent = "";
+  if (series.length < 2) return;
+  for (const s of series) {
+    const span = document.createElement("span");
+    const i = document.createElement("i");
+    if (square) i.className = "sq";
+    i.style.background = s.color;
+    span.append(i, document.createTextNode(s.name));
+    el.appendChild(span);
+  }
+}
+
+/* ------------------------------------------------------------ line chart */
+
 function lineChart(el, series, opts = {}) {
   el.textContent = "";
   const valueFmt = opts.valueFmt || fmt;
-  const tickFmt = opts.valueFmt || (v =>
-    v >= 1000 ? (v / 1000).toFixed(v % 1000 ? 1 : 0) + "K" : v.toLocaleString("en-US"));
+  const tickFmt = opts.valueFmt || tickNum;
   const live = series.filter(s => s.points.length > 0);
   if (!live.length || Math.max(...live.map(s => s.points.length)) < 2) {
-    const d = document.createElement("div");
-    d.className = "empty";
-    d.textContent = "Not enough data in this range yet.";
-    el.appendChild(d);
+    emptyNote(el);
     return;
   }
   const W = 940, H = 260, padL = 46, padR = 74, padT = 10, padB = 26;
@@ -268,30 +438,20 @@ function lineChart(el, series, opts = {}) {
   const X = iso => padL + (new Date(iso).getTime() - t0) / Math.max(t1 - t0, 1) * (W - padL - padR);
   const Y = v => padT + (1 - v / yTop) * (H - padT - padB);
 
-  const ns = "http://www.w3.org/2000/svg";
-  const svg = document.createElementNS(ns, "svg");
+  const svg = document.createElementNS(NS, "svg");
   svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
-  const add = (parent, tag, attrs, text) => {
-    const n = document.createElementNS(ns, tag);
-    for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
-    if (text != null) n.textContent = text;
-    parent.appendChild(n);
-    return n;
-  };
 
-  // gridlines + y ticks (hairline, recessive)
   for (const v of ticks) {
-    add(svg, "line", { x1: padL, x2: W - padR, y1: Y(v), y2: Y(v),
+    svgAdd(svg, "line", { x1: padL, x2: W - padR, y1: Y(v), y2: Y(v),
       stroke: v === 0 ? "var(--axis)" : "var(--grid)", "stroke-width": 1 });
-    add(svg, "text", { x: padL - 8, y: Y(v) + 4, "text-anchor": "end",
+    svgAdd(svg, "text", { x: padL - 8, y: Y(v) + 4, "text-anchor": "end",
       "font-size": 11, fill: "var(--text-muted)" }, tickFmt(v));
   }
-  // x labels: ~6 evenly spaced dates
   const nLab = Math.min(6, xs.length);
+  const shortRange = (t1 - t0) < 200 * 86400000;
   for (let i = 0; i < nLab; i++) {
     const x = xs[Math.round(i * (xs.length - 1) / Math.max(nLab - 1, 1))];
-    const shortRange = (t1 - t0) < 200 * 86400000;
-    add(svg, "text", { x: X(x), y: H - 8, "text-anchor": "middle",
+    svgAdd(svg, "text", { x: X(x), y: H - 8, "text-anchor": "middle",
       "font-size": 11, fill: "var(--text-muted)" },
       opts.monthly ? fmtMonth(x)
       : new Date(x).toLocaleDateString("en-GB",
@@ -301,21 +461,16 @@ function lineChart(el, series, opts = {}) {
   for (const s of live) {
     const pts = s.points.map(p => [X(p.x), Y(p.y)]);
     const dAttr = pts.map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join(" ");
-    if (opts.area && live.length === 1) {
-      add(svg, "path", { d: dAttr + ` L${pts[pts.length - 1][0]} ${Y(0)} L${pts[0][0]} ${Y(0)} Z`,
-        fill: s.color, opacity: "0.10", stroke: "none" });
-    }
-    add(svg, "path", { d: dAttr, fill: "none", stroke: s.color,
+    svgAdd(svg, "path", { d: dAttr, fill: "none", stroke: s.color,
       "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" });
-    // end marker with surface ring + direct end label
     const last = pts[pts.length - 1];
-    add(svg, "circle", { cx: last[0], cy: last[1], r: 6, fill: "var(--surface)" });
-    add(svg, "circle", { cx: last[0], cy: last[1], r: 4, fill: s.color });
-    add(svg, "text", { x: last[0] + 9, y: last[1] + 4, "font-size": 12,
+    svgAdd(svg, "circle", { cx: last[0], cy: last[1], r: 6, fill: "var(--surface)" });
+    svgAdd(svg, "circle", { cx: last[0], cy: last[1], r: 4, fill: s.color });
+    svgAdd(svg, "text", { x: last[0] + 9, y: last[1] + 4, "font-size": 12,
       "font-weight": 600, fill: "var(--text-primary)" },
       valueFmt(s.points[s.points.length - 1].y));
   }
-  // de-collide end labels (nudge apart when overlapping)
+  // de-collide end labels
   const labels = [...svg.querySelectorAll("text")].filter(t => t.getAttribute("font-weight") === "600");
   labels.sort((a, b) => +a.getAttribute("y") - +b.getAttribute("y"));
   for (let i = 1; i < labels.length; i++) {
@@ -323,13 +478,10 @@ function lineChart(el, series, opts = {}) {
     if (cur - prev < 14) labels[i].setAttribute("y", prev + 14);
   }
 
-  // crosshair + tooltip
-  const cross = add(svg, "line", { y1: padT, y2: H - padB, stroke: "var(--axis)",
+  const cross = svgAdd(svg, "line", { y1: padT, y2: H - padB, stroke: "var(--axis)",
     "stroke-width": 1, visibility: "hidden" });
-  const tip = document.createElement("div");
-  tip.className = "tip";
   el.appendChild(svg);
-  el.appendChild(tip);
+  const tip = makeTip(el);
 
   svg.addEventListener("pointermove", ev => {
     const rect = svg.getBoundingClientRect();
@@ -337,23 +489,14 @@ function lineChart(el, series, opts = {}) {
     if (mx < padL || mx > W - padR) { hide(); return; }
     let best = xs[0], bd = Infinity;
     for (const x of xs) { const d = Math.abs(X(x) - mx); if (d < bd) { bd = d; best = x; } }
-    cross.setAttribute("x1", X(best)); cross.setAttribute("x2", X(best));
+    cross.setAttribute("x1", X(best));
+    cross.setAttribute("x2", X(best));
     cross.setAttribute("visibility", "visible");
-    tip.textContent = "";
-    const dt = document.createElement("div");
-    dt.className = "tip-date";
-    dt.textContent = opts.monthly ? fmtMonth(best) : fmtDate(best);
-    tip.appendChild(dt);
-    for (const s of live) {
-      const p = s.points.find(q => q.x === best);
-      if (!p) continue;
-      const row = document.createElement("div"); row.className = "row";
-      const key = document.createElement("i"); key.style.background = s.color;
-      const val = document.createElement("b"); val.textContent = valueFmt(p.y);
-      const name = document.createElement("span"); name.textContent = s.name;
-      row.append(key, val, name);
-      tip.appendChild(row);
-    }
+    tipRows(tip, opts.monthly ? fmtMonth(best) : fmtDate(best),
+      live.map(s => {
+        const p = s.points.find(q => q.x === best);
+        return p && { color: s.color, value: valueFmt(p.y), name: s.name };
+      }).filter(Boolean));
     tip.style.display = "block";
     const px = X(best) / W * rect.width;
     tip.style.left = Math.min(px + 12, rect.width - tip.offsetWidth - 4) + "px";
@@ -363,51 +506,436 @@ function lineChart(el, series, opts = {}) {
   svg.addEventListener("pointerleave", hide);
 }
 
-function legend(el, series) {
+/* ------------------------------------------------- grouped bar chart */
+
+/**
+ * categories: [{key, label, tipLabel?}]
+ * series: [{name, color, values: {key: number}, notes?: {key: string}}]
+ * Bars ≤24px, 4px rounded data-end / square baseline, 2px gaps between
+ * grouped bars, per-category hover tooltip listing every series.
+ */
+function barChart(el, categories, series, opts = {}) {
   el.textContent = "";
-  if (series.length < 2) return;
-  for (const s of series) {
-    const span = document.createElement("span");
-    const i = document.createElement("i");
-    i.style.background = s.color;
-    span.append(i, document.createTextNode(s.name));
-    el.appendChild(span);
+  const live = series.filter(s => Object.values(s.values).some(v => v != null));
+  if (!categories.length || !live.length) {
+    emptyNote(el);
+    return;
+  }
+  const W = 940, H = 240, padL = 46, padR = 12, padT = 12, padB = 26;
+  const yMax = Math.max(...live.flatMap(s => Object.values(s.values).filter(v => v != null)), 1);
+  const ticks = niceTicks(yMax);
+  const yTop = ticks[ticks.length - 1];
+  const Y = v => padT + (1 - Math.max(v, 0) / yTop) * (H - padT - padB);
+
+  const svg = document.createElementNS(NS, "svg");
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+
+  for (const v of ticks) {
+    svgAdd(svg, "line", { x1: padL, x2: W - padR, y1: Y(v), y2: Y(v),
+      stroke: v === 0 ? "var(--axis)" : "var(--grid)", "stroke-width": 1 });
+    svgAdd(svg, "text", { x: padL - 8, y: Y(v) + 4, "text-anchor": "end",
+      "font-size": 11, fill: "var(--text-muted)" }, tickNum(v));
+  }
+
+  const band = (W - padL - padR) / categories.length;
+  const barW = Math.min(24, Math.max(2, (band * 0.7 - 2 * (live.length - 1)) / live.length));
+  const groupW = barW * live.length + 2 * (live.length - 1);
+
+  categories.forEach((c, ci) => {
+    const cx = padL + band * ci + band / 2;
+    live.forEach((s, si) => {
+      const v = s.values[c.key];
+      if (v == null || v < 0) {
+        if (v == null) return;
+      }
+      const x = cx - groupW / 2 + si * (barW + 2);
+      const y = Y(v), y0 = Y(0);
+      const h = Math.max(y0 - y, 0);
+      const r = Math.min(4, h, barW / 2);
+      svgAdd(svg, "path", { d:
+        `M${x} ${y0} L${x} ${y + r} Q${x} ${y} ${x + r} ${y} L${x + barW - r} ${y} ` +
+        `Q${x + barW} ${y} ${x + barW} ${y + r} L${x + barW} ${y0} Z`,
+        fill: s.color });
+    });
+  });
+
+  const nLab = Math.min(opts.maxLabels || 10, categories.length);
+  for (let i = 0; i < nLab; i++) {
+    const ci = Math.round(i * (categories.length - 1) / Math.max(nLab - 1, 1));
+    svgAdd(svg, "text", { x: padL + band * ci + band / 2, y: H - 8,
+      "text-anchor": "middle", "font-size": 11, fill: "var(--text-muted)" },
+      categories[ci].label);
+  }
+
+  el.appendChild(svg);
+  const tip = makeTip(el);
+  const hover = svgAdd(svg, "rect", { y: padT, height: H - padT - padB,
+    fill: "var(--text-primary)", opacity: 0, visibility: "hidden" });
+
+  svg.addEventListener("pointermove", ev => {
+    const rect = svg.getBoundingClientRect();
+    const mx = (ev.clientX - rect.left) / rect.width * W;
+    if (mx < padL || mx > W - padR) { hide(); return; }
+    const ci = Math.min(categories.length - 1, Math.max(0, Math.floor((mx - padL) / band)));
+    const c = categories[ci];
+    hover.setAttribute("x", padL + band * ci);
+    hover.setAttribute("width", band);
+    hover.setAttribute("opacity", 0.06);
+    hover.setAttribute("visibility", "visible");
+    const rows = live.map(s => {
+      const v = s.values[c.key];
+      return v == null ? null : { color: s.color,
+        value: fmt(Math.round(v)) + ((s.notes || {})[c.key] || ""), name: s.name };
+    }).filter(Boolean);
+    if (!rows.length) { hide(); return; }
+    tipRows(tip, c.tipLabel || c.label, rows, true);
+    tip.style.display = "block";
+    const px = (padL + band * ci + band / 2) / W * rect.width;
+    tip.style.left = Math.min(px + 10, rect.width - tip.offsetWidth - 4) + "px";
+    tip.style.top = "6px";
+  });
+  const hide = () => { tip.style.display = "none"; hover.setAttribute("visibility", "hidden"); };
+  svg.addEventListener("pointerleave", hide);
+}
+
+/* ----------------------------------------------------------- post tables */
+
+function buildPostsTable(posts, { sortable = false, onSort = null, sortState = null } = {}) {
+  const table = document.createElement("table");
+  const thead = table.createTHead().insertRow();
+  const cols = [
+    ["Platform", null, null], ["Date", null, "Published"], ["Type", null, "Type"],
+    ["Caption", null, null], ["Reach", "num", "Reach"], ["Likes", "num", "Likes"],
+    ["Comments", "num", "Comments"], ["Shares", "num", "Shares"],
+    ["Saves", "num", "Saves"], ["Total", "num", "__eng"],
+  ];
+  for (const [name, cls, sortKey] of cols) {
+    const th = document.createElement("th");
+    if (cls) th.className = cls;
+    th.textContent = name;
+    if (sortable && sortKey) {
+      th.classList.add("sortable");
+      if (sortState && sortState.key === sortKey) {
+        const a = document.createElement("span");
+        a.className = "arrow";
+        a.textContent = sortState.dir > 0 ? " ▲" : " ▼";
+        th.appendChild(a);
+      }
+      th.addEventListener("click", () => onSort(sortKey));
+    }
+    thead.appendChild(th);
+  }
+  const tbody = table.createTBody();
+  for (const p of posts) {
+    const tr = tbody.insertRow();
+    tr.className = "clickable";
+    tr.addEventListener("click", ev => {
+      if (ev.target.closest("a")) return;
+      openPostModal(p);
+    });
+    const chip = document.createElement("span");
+    chip.className = "plat-chip";
+    const dot = document.createElement("i");
+    dot.style.background = COLOR[p.Platform] || "var(--text-muted)";
+    chip.append(dot, document.createTextNode(p.Platform || "—"));
+    tr.insertCell().appendChild(chip);
+    const dateTd = tr.insertCell();
+    dateTd.className = "date";
+    dateTd.textContent = p.Published ? fmtDate(p.Published) : "—";
+    tr.insertCell().textContent = p.Type || "—";
+    const cap = tr.insertCell();
+    cap.className = "caption";
+    cap.dir = "auto";
+    cap.textContent = p.Caption || "—";
+    cap.title = p.Caption || "";
+    for (const k of ["Reach", "Likes", "Comments", "Shares", "Saves"]) {
+      const td = tr.insertCell();
+      td.className = "num";
+      td.textContent = fmt(p[k]);
+    }
+    const tot = tr.insertCell();
+    tot.className = "num";
+    const b = document.createElement("b");
+    b.textContent = fmt(ENG(p));
+    tot.appendChild(b);
+  }
+  return table;
+}
+
+/* ------------------------------------------------------------ post modal */
+
+let igEmbedScriptAdded = false;
+
+function openPostModal(post) {
+  closePostModal();
+  const overlay = document.createElement("div");
+  overlay.className = "overlay";
+  overlay.id = "post-overlay";
+  overlay.addEventListener("click", ev => { if (ev.target === overlay) closePostModal(); });
+
+  const modal = document.createElement("div");
+  modal.className = "modal";
+
+  const head = document.createElement("div");
+  head.className = "modal-head";
+  const chip = document.createElement("span");
+  chip.className = "plat-chip";
+  const dot = document.createElement("i");
+  dot.style.background = COLOR[post.Platform] || "var(--text-muted)";
+  chip.append(dot, document.createTextNode(`${post.Platform || ""} ${post.Type || ""}`));
+  const h3 = document.createElement("h3");
+  h3.dir = "auto";
+  h3.textContent = post.Caption || "(no caption)";
+  const close = document.createElement("button");
+  close.className = "icon-btn";
+  close.textContent = "✕";
+  close.setAttribute("aria-label", "Close");
+  close.addEventListener("click", closePostModal);
+  head.append(chip, h3, close);
+
+  const body = document.createElement("div");
+  body.className = "modal-body";
+  const embedCol = document.createElement("div");
+  embedCol.className = "m-embed";
+  const statsCol = document.createElement("div");
+  statsCol.className = "m-stats";
+  body.append(embedCol, statsCol);
+  modal.append(head, body);
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+  document.addEventListener("keydown", escClose);
+
+  renderEmbed(embedCol, post);
+  renderPostStats(statsCol, post);
+}
+
+function escClose(ev) { if (ev.key === "Escape") closePostModal(); }
+function closePostModal() {
+  const o = document.getElementById("post-overlay");
+  if (o) o.remove();
+  document.removeEventListener("keydown", escClose);
+}
+
+function renderEmbed(el, post) {
+  if (!post.Permalink) {
+    const d = document.createElement("div");
+    d.className = "empty";
+    d.textContent = "No permalink stored for this post.";
+    el.appendChild(d);
+    return;
+  }
+  if (post.Platform === IG) {
+    const bq = document.createElement("blockquote");
+    bq.className = "instagram-media";
+    bq.setAttribute("data-instgrm-permalink", post.Permalink);
+    bq.setAttribute("data-instgrm-version", "14");
+    bq.style.cssText = "background: #fff; border: 1px solid var(--border); border-radius: 10px; width: 100%; margin: 0;";
+    const a = document.createElement("a");
+    a.href = post.Permalink;
+    a.target = "_blank";
+    a.rel = "noopener";
+    a.textContent = "View this post on Instagram";
+    bq.appendChild(a);
+    el.appendChild(bq);
+    if (!igEmbedScriptAdded) {
+      const s = document.createElement("script");
+      s.async = true;
+      s.src = "https://www.instagram.com/embed.js";
+      document.body.appendChild(s);
+      igEmbedScriptAdded = true;
+    }
+    const process = () => window.instgrm && window.instgrm.Embeds.process();
+    process();
+    setTimeout(process, 700);
+  } else {
+    const plugin = post.Permalink.includes("/reel/") ? "video" : "post";
+    const iframe = document.createElement("iframe");
+    iframe.src = `https://www.facebook.com/plugins/${plugin}.php?href=` +
+      encodeURIComponent(post.Permalink) + "&width=360&show_text=true";
+    iframe.width = "360";
+    iframe.height = "460";
+    iframe.style.cssText = "border: none; overflow: hidden; display: block; margin: 0 auto;";
+    iframe.setAttribute("scrolling", "no");
+    iframe.setAttribute("allow", "encrypted-media");
+    el.appendChild(iframe);
+    const note = document.createElement("p");
+    note.style.cssText = "color: var(--text-muted); font-size: 12px; margin-top: 8px; text-align: center;";
+    note.textContent = "Preview not loading? ";
+    const a = document.createElement("a");
+    a.href = post.Permalink;
+    a.target = "_blank";
+    a.rel = "noopener";
+    a.textContent = "Open on Facebook ↗";
+    a.style.color = "var(--metric-a)";
+    note.appendChild(a);
+    el.appendChild(note);
+  }
+}
+
+function cmpChip(cur, base) {
+  const s = document.createElement("span");
+  if (base == null || base === 0 || cur == null) {
+    s.style.color = "var(--text-muted)";
+    s.textContent = "n/a";
+    return s;
+  }
+  const pct = (cur - base) / base * 100;
+  s.className = pct >= 0 ? "up" : "down";
+  s.textContent = (pct >= 0 ? "+" : "−") + Math.abs(pct).toFixed(0) + "% " +
+    (pct >= 0 ? "above avg" : "below avg");
+  return s;
+}
+
+function renderPostStats(el, post) {
+  const eng = ENG(post);
+  const sameplat = POSTS.filter(p => p.Platform === post.Platform);
+  const avg = arr => arr.length ? arr.reduce((a, p) => a + ENG(p), 0) / arr.length : null;
+
+  const h4 = t => {
+    const h = document.createElement("h4");
+    h.textContent = t;
+    el.appendChild(h);
+  };
+  const stat = (label, value) => {
+    const row = document.createElement("div");
+    row.className = "stat-row";
+    const s = document.createElement("span");
+    s.textContent = label;
+    const b = document.createElement("b");
+    b.textContent = value;
+    row.append(s, b);
+    el.appendChild(row);
+  };
+
+  h4("This post");
+  stat("Published", post.Published ? fmtDate(post.Published) : "—");
+  stat("Reach", fmt(post.Reach));
+  stat("Likes", fmt(post.Likes));
+  stat("Comments", fmt(post.Comments));
+  if (post.Platform === IG) stat("Saves", fmt(post.Saves));
+  stat("Shares", fmt(post.Shares));
+  stat("Total interactions", fmt(eng));
+  if (post.Reach) stat("Engagement ÷ reach", (eng / post.Reach * 100).toFixed(1) + "%");
+
+  h4("How it compares (total interactions)");
+  const cmp = (label, baseArr) => {
+    const row = document.createElement("div");
+    row.className = "cmp-row";
+    const l = document.createElement("span");
+    const base = avg(baseArr);
+    l.textContent = `${label} — avg ${base == null ? "—" : fmt(Math.round(base))}, n=${baseArr.length}`;
+    row.append(l, cmpChip(eng, base));
+    el.appendChild(row);
+  };
+  const sameType = sameplat.filter(p => p.Type === post.Type && p["Post ID"] !== post["Post ID"]);
+  cmp(`Other ${post.Platform} ${post.Type || "post"}s`, sameType);
+  if (post.Published) {
+    const month = post.Published.slice(0, 7);
+    const sameMonth = sameplat.filter(p =>
+      (p.Published || "").slice(0, 7) === month && p["Post ID"] !== post["Post ID"]);
+    cmp(`${post.Platform} posts in ${fmtMonth(month + "-15")}`, sameMonth);
+  }
+  const rank = sameplat.filter(p => ENG(p) > eng).length + 1;
+  const row = document.createElement("div");
+  row.className = "cmp-row";
+  const l = document.createElement("span");
+  l.textContent = `All-time rank among ${sameplat.length} ${post.Platform} posts`;
+  const b = document.createElement("b");
+  b.textContent = `#${rank}`;
+  row.append(l, b);
+  el.appendChild(row);
+
+  if (post.Permalink) {
+    const links = document.createElement("div");
+    links.className = "m-links";
+    const a = document.createElement("a");
+    a.href = post.Permalink;
+    a.target = "_blank";
+    a.rel = "noopener";
+    a.textContent = `Open on ${post.Platform} ↗`;
+    links.appendChild(a);
+    el.appendChild(links);
   }
 }
 
 /* --------------------------------------------------------------- render */
 
 let SNAPSHOTS = [], POSTS = [];
+let RANGE = { from: null, to: null };          // nulls = all time
+let SORT = { key: "Published", dir: -1 };
+let PLAT_FILTER = "All";
 
-function render(rangeDays) {
-  const cutoff = rangeDays > 0
-    ? new Date(Date.now() - rangeDays * 86400000).toISOString().slice(0, 10)
-    : "0000";
-  const snaps = SNAPSHOTS.filter(s => s.Date >= cutoff);
-  const posts = POSTS.filter(p => p.Published && p.Published >= cutoff);
+function rangeBounds() {
+  const allDates = SNAPSHOTS.map(s => s.Date)
+    .concat(POSTS.map(p => p.Published)).filter(Boolean).sort();
+  const dataFrom = allDates[0] || todayISO();
+  const dataTo = allDates[allDates.length - 1] || todayISO();
+  const from = RANGE.from || dataFrom;
+  const to = RANGE.to || dataTo;
+  const len = Math.max(1, Math.round((new Date(to) - new Date(from)) / 86400000) + 1);
+  const prevTo = addDays(from, -1);
+  const prevFrom = addDays(prevTo, -(len - 1));
+  const hasPrev = !!RANGE.from && prevTo >= dataFrom;
+  return { from, to, prevFrom, prevTo, hasPrev };
+}
 
-  /* tiles */
+function render() {
+  const { from, to, prevFrom, prevTo, hasPrev } = rangeBounds();
+  const inR = d => d >= from && d <= to;
+  const inPrev = d => d >= prevFrom && d <= prevTo;
+  const snaps = SNAPSHOTS.filter(s => inR(s.Date));
+  const posts = POSTS.filter(p => p.Published && inR(p.Published));
+  const postsPrev = POSTS.filter(p => p.Published && inPrev(p.Published));
+
+  document.getElementById("print-meta").textContent =
+    `Report range: ${fmtDate(from)} – ${fmtDate(to)} · generated ${fmtDate(todayISO())}`;
+
+  /* ------------------------------------------------------------- tiles */
   const tiles = document.getElementById("tiles");
   tiles.textContent = "";
-  const engagementOf = p => (p.Likes || 0) + (p.Comments || 0) + (p.Shares || 0) + (p.Saves || 0);
   for (const plat of [FB, IG]) {
     const rows = snaps.filter(s => s.Platform === plat && s.Followers != null);
     const cur = rows[rows.length - 1], first = rows[0];
-    const delta = cur && first ? cur.Followers - first.Followers : null;
-    tiles.appendChild(tile(`${plat} followers`, COLOR[plat],
-      cur ? fmt(cur.Followers) : "—",
-      delta == null ? "" : delta, "in range"));
+    const t = tile(`${plat} followers`, COLOR[plat], cur ? fmt(cur.Followers) : "—");
+    if (cur && first && cur !== first) {
+      const delta = cur.Followers - first.Followers;
+      const dd = t.querySelector(".t-delta");
+      const s = document.createElement("span");
+      s.className = delta >= 0 ? "up" : "down";
+      s.textContent = (delta >= 0 ? "▲ +" : "▼ ") + Math.abs(delta).toLocaleString("en-US");
+      dd.append(s, document.createTextNode(" in range"));
+    }
+    tiles.appendChild(t);
   }
   const igReach = snaps.filter(s => s.Platform === IG && s.Reach != null).at(-1);
-  tiles.appendChild(tile("Instagram reach (28 days)", COLOR[IG],
-    igReach ? fmt(igReach.Reach) : "—", null,
-    igReach ? "as of " + fmtDate(igReach.Date) : "no data yet"));
-  const nPosts = posts.length;
-  const totEng = posts.reduce((a, p) => a + engagementOf(p), 0);
-  tiles.appendChild(tile("Posts in range", null, fmt(nPosts), null,
-    fmt(totEng) + " total interactions"));
+  const igReachPrev = SNAPSHOTS.filter(s =>
+    s.Platform === IG && s.Reach != null && inPrev(s.Date)).at(-1);
+  const reachTile = tile("Instagram reach (28 days)", COLOR[IG],
+    igReach ? fmt(igReach.Reach) : "—");
+  {
+    const dd = reachTile.querySelector(".t-delta");
+    if (hasPrev && igReach && igReachPrev) {
+      dd.appendChild(pctChip(igReach.Reach, igReachPrev.Reach, "vs previous period"));
+    } else if (igReach) {
+      dd.textContent = "as of " + fmtDate(igReach.Date);
+    }
+  }
+  tiles.appendChild(reachTile);
 
-  /* follower growth */
+  const totEng = posts.reduce((a, p) => a + ENG(p), 0);
+  const totEngPrev = postsPrev.reduce((a, p) => a + ENG(p), 0);
+  const postsTile = tile("Posts in range", null, fmt(posts.length));
+  {
+    const dd = postsTile.querySelector(".t-delta");
+    dd.textContent = fmt(totEng) + " interactions";
+    if (hasPrev && totEngPrev) {
+      dd.appendChild(document.createTextNode(" · "));
+      dd.appendChild(pctChip(totEng, totEngPrev, "vs previous period"));
+    }
+  }
+  tiles.appendChild(postsTile);
+
+  /* -------------------------------------------------- follower growth */
   const followerSeries = [FB, IG].map(plat => ({
     name: plat, color: COLOR[plat],
     points: snaps.filter(s => s.Platform === plat && s.Followers != null)
@@ -416,7 +944,38 @@ function render(rangeDays) {
   legend(document.getElementById("lg-followers"), followerSeries);
   lineChart(document.getElementById("ch-followers"), followerSeries);
 
-  /* reach & views (IG only — FB metrics deprecated by Meta) */
+  /* ---------------------------------------------------- new followers */
+  const spanDays = (new Date(to) - new Date(from)) / 86400000;
+  const monthlyAdds = spanDays > 400;
+  document.getElementById("sub-adds").textContent = monthlyAdds
+    ? "Net follower change per month (long ranges are bucketed monthly)"
+    : "Net follower change per week";
+  const buckets = new Map();
+  const addSeries = [FB, IG].map(plat => {
+    const rows = SNAPSHOTS.filter(s => s.Platform === plat && s.Followers != null)
+                          .sort((a, b) => a.Date < b.Date ? -1 : 1);
+    const values = {};
+    for (let i = 1; i < rows.length; i++) {
+      const d = rows[i].Date;
+      if (!inR(d)) continue;
+      const gap = (new Date(d) - new Date(rows[i - 1].Date)) / 86400000;
+      if (gap > 45) continue; // don't bridge holes in the data
+      const key = monthlyAdds ? d.slice(0, 7) : d;
+      buckets.set(key, true);
+      values[key] = (values[key] || 0) + (rows[i].Followers - rows[i - 1].Followers);
+    }
+    return { name: plat, color: COLOR[plat], values };
+  });
+  const addCats = [...buckets.keys()].sort().map(k => ({
+    key: k,
+    label: monthlyAdds ? fmtMonth(k + "-15") : fmtDate(k).replace(/ \d{4}$/, ""),
+    tipLabel: monthlyAdds ? fmtMonth(k + "-15") : "week ending " + fmtDate(k),
+  }));
+  legend(document.getElementById("lg-adds"), addSeries, true);
+  barChart(document.getElementById("ch-adds"), addCats, addSeries,
+    { maxLabels: monthlyAdds ? 12 : 8 });
+
+  /* ------------------------------------------------------ reach/views */
   const igSnaps = snaps.filter(s => s.Platform === IG);
   const reachSeries = [
     { name: "Reach", color: "var(--metric-a)",
@@ -427,18 +986,16 @@ function render(rangeDays) {
   legend(document.getElementById("lg-reach"), reachSeries);
   lineChart(document.getElementById("ch-reach"), reachSeries);
 
-  /* engagement rate: monthly interactions ÷ followers at month end */
+  /* -------------------------------------------------- engagement rate */
   const engSeries = [FB, IG].map(plat => {
     const byMonth = new Map();
     for (const p of posts) {
       if (p.Platform !== plat) continue;
       const m = p.Published.slice(0, 7);
-      byMonth.set(m, (byMonth.get(m) || 0) + engagementOf(p));
+      byMonth.set(m, (byMonth.get(m) || 0) + ENG(p));
     }
     const fAll = SNAPSHOTS.filter(s => s.Platform === plat && s.Followers != null);
     const points = [...byMonth.keys()].sort().map(m => {
-      // followers as of month end; months before the first snapshot fall
-      // back to the earliest known count so the point isn't dropped
       const followers = (fAll.filter(s => s.Date <= m + "-31").at(-1) || fAll[0])?.Followers;
       return followers ? { x: m + "-15", y: +(byMonth.get(m) / followers * 100).toFixed(2) } : null;
     }).filter(Boolean);
@@ -448,93 +1005,168 @@ function render(rangeDays) {
   lineChart(document.getElementById("ch-engage"), engSeries,
     { valueFmt: v => v.toFixed(1) + "%", monthly: true });
 
-  /* top posts */
-  const wrap = document.getElementById("top-posts");
-  wrap.textContent = "";
-  const top = [...posts].sort((a, b) => engagementOf(b) - engagementOf(a)).slice(0, 5);
+  /* ----------------------------------------------- format performance */
+  const types = [...new Set(posts.map(p => p.Type).filter(Boolean))].sort();
+  const typeSeries = [FB, IG].map(plat => {
+    const values = {}, notes = {};
+    for (const t of types) {
+      const arr = posts.filter(p => p.Platform === plat && p.Type === t);
+      if (arr.length) {
+        values[t] = arr.reduce((a, p) => a + ENG(p), 0) / arr.length;
+        notes[t] = ` avg · ${arr.length} post${arr.length > 1 ? "s" : ""}`;
+      }
+    }
+    return { name: plat, color: COLOR[plat], values, notes };
+  });
+  legend(document.getElementById("lg-format"), typeSeries, true);
+  barChart(document.getElementById("ch-format"),
+    types.map(t => ({ key: t, label: t })), typeSeries, { maxLabels: 6 });
+
+  /* ---------------------------------------------------- best weekday */
+  const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const daySeries = [FB, IG].map(plat => {
+    const values = {}, notes = {};
+    dayNames.forEach((name, di) => {
+      const arr = posts.filter(p => p.Platform === plat &&
+        new Date(p.Published + "T00:00:00").getDay() === di);
+      if (arr.length) {
+        values[name] = arr.reduce((a, p) => a + ENG(p), 0) / arr.length;
+        notes[name] = ` avg · ${arr.length} post${arr.length > 1 ? "s" : ""}`;
+      }
+    });
+    return { name: plat, color: COLOR[plat], values, notes };
+  });
+  legend(document.getElementById("lg-weekday"), daySeries, true);
+  barChart(document.getElementById("ch-weekday"),
+    dayNames.map(d => ({ key: d, label: d.slice(0, 3) })), daySeries, { maxLabels: 7 });
+
+  /* ------------------------------------------------------------ top 5 */
+  const topWrap = document.getElementById("top-posts");
+  topWrap.textContent = "";
+  const top = [...posts].sort((a, b) => ENG(b) - ENG(a)).slice(0, 5);
   if (!top.length) {
-    const d = document.createElement("div");
-    d.className = "empty"; d.textContent = "No posts in this range.";
-    wrap.appendChild(d);
+    emptyNote(topWrap);
   } else {
-    const table = document.createElement("table");
-    const thead = table.createTHead().insertRow();
-    for (const [h, cls] of [["Platform"], ["Date"], ["Type"], ["Caption"],
-        ["Likes", "num"], ["Comments", "num"], ["Shares", "num"], ["Saves", "num"],
-        ["Total", "num"], [""]]) {
-      const th = document.createElement("th");
-      th.textContent = h;
-      if (cls) th.className = cls;
-      thead.appendChild(th);
-    }
-    const tbody = table.createTBody();
-    for (const p of top) {
-      const tr = tbody.insertRow();
-      const chip = document.createElement("span");
-      chip.className = "plat-chip";
-      const dot = document.createElement("i");
-      dot.style.background = COLOR[p.Platform] || "var(--text-muted)";
-      chip.append(dot, document.createTextNode(p.Platform || "—"));
-      tr.insertCell().appendChild(chip);
-      const dateTd = tr.insertCell();
-      dateTd.className = "date";
-      dateTd.textContent = p.Published ? fmtDate(p.Published) : "—";
-      tr.insertCell().textContent = p.Type || "—";
-      const cap = tr.insertCell();
-      cap.className = "caption";
-      cap.dir = "auto";
-      cap.textContent = p.Caption || "—";
-      cap.title = p.Caption || "";
-      for (const k of ["Likes", "Comments", "Shares", "Saves"]) {
-        const td = tr.insertCell(); td.className = "num"; td.textContent = fmt(p[k]);
-      }
-      const tot = tr.insertCell(); tot.className = "num";
-      const b = document.createElement("b"); b.textContent = fmt(engagementOf(p));
-      tot.appendChild(b);
-      const linkTd = tr.insertCell();
-      if (p.Permalink) {
-        const a = document.createElement("a");
-        a.href = p.Permalink; a.target = "_blank"; a.rel = "noopener";
-        a.textContent = "View ↗";
-        linkTd.appendChild(a);
-      }
-    }
-    wrap.appendChild(table);
+    const scroll = document.createElement("div");
+    scroll.className = "table-scroll";
+    scroll.appendChild(buildPostsTable(top));
+    topWrap.appendChild(scroll);
   }
+
+  /* --------------------------------------------------------- all posts */
+  renderAllPosts(posts);
 }
 
-function tile(label, keyColor, value, delta, deltaSuffix) {
+function renderAllPosts(posts) {
+  const wrap = document.getElementById("all-posts");
+  wrap.textContent = "";
+  const list = PLAT_FILTER === "All" ? [...posts] : posts.filter(p => p.Platform === PLAT_FILTER);
+  document.getElementById("posts-count").textContent =
+    `${list.length} post${list.length === 1 ? "" : "s"}`;
+  const key = SORT.key;
+  list.sort((a, b) => {
+    const va = key === "__eng" ? ENG(a) : a[key];
+    const vb = key === "__eng" ? ENG(b) : b[key];
+    if (va == null && vb == null) return 0;
+    if (va == null) return 1;
+    if (vb == null) return -1;
+    return (va < vb ? -1 : va > vb ? 1 : 0) * SORT.dir;
+  });
+  if (!list.length) {
+    emptyNote(wrap);
+    return;
+  }
+  const scrollY = document.createElement("div");
+  scrollY.id = "all-posts-body";
+  const scrollX = document.createElement("div");
+  scrollX.className = "table-scroll";
+  scrollX.appendChild(buildPostsTable(list, {
+    sortable: true,
+    sortState: SORT,
+    onSort: k => {
+      SORT = { key: k, dir: SORT.key === k ? -SORT.dir : -1 };
+      renderAllPosts(posts);
+    },
+  }));
+  scrollY.appendChild(scrollX);
+  wrap.appendChild(scrollY);
+}
+
+function tile(label, keyColor, value) {
   const d = document.createElement("div");
   d.className = "tile";
-  const l = document.createElement("div"); l.className = "t-label";
+  const l = document.createElement("div");
+  l.className = "t-label";
   if (keyColor) {
-    const k = document.createElement("i"); k.className = "key";
-    k.style.background = keyColor; l.appendChild(k);
+    const k = document.createElement("i");
+    k.className = "key";
+    k.style.background = keyColor;
+    l.appendChild(k);
   }
   l.appendChild(document.createTextNode(label));
-  const v = document.createElement("div"); v.className = "t-value"; v.textContent = value;
-  const dd = document.createElement("div"); dd.className = "t-delta";
-  if (typeof delta === "number") {
-    const s = document.createElement("span");
-    s.className = delta >= 0 ? "up" : "down";
-    s.textContent = (delta >= 0 ? "▲ +" : "▼ ") + delta.toLocaleString("en-US");
-    dd.append(s, document.createTextNode(" " + deltaSuffix));
-  } else if (deltaSuffix) {
-    dd.textContent = deltaSuffix;
-  }
+  const v = document.createElement("div");
+  v.className = "t-value";
+  v.textContent = value;
+  const dd = document.createElement("div");
+  dd.className = "t-delta";
   d.append(l, v, dd);
   return d;
 }
 
 /* ----------------------------------------------------------------- init */
 
+function selectRangeBtn(btn) {
+  for (const b of document.querySelectorAll(".range-btn")) b.setAttribute("aria-pressed", "false");
+  if (btn) btn.setAttribute("aria-pressed", "true");
+}
+
 document.getElementById("filters").addEventListener("click", ev => {
   const btn = ev.target.closest(".range-btn");
-  if (!btn) return;
-  for (const b of document.querySelectorAll(".range-btn")) b.setAttribute("aria-pressed", "false");
-  btn.setAttribute("aria-pressed", "true");
-  render(+btn.dataset.days);
+  if (btn && btn.dataset.days !== undefined) {
+    selectRangeBtn(btn);
+    document.getElementById("custom-inputs").hidden = true;
+    const days = +btn.dataset.days;
+    RANGE = days ? { from: addDays(todayISO(), -days), to: todayISO() }
+                 : { from: null, to: null };
+    render();
+  }
 });
+
+document.getElementById("card-all-posts").addEventListener("click", ev => {
+  const chip = ev.target.closest(".chip-btn");
+  if (!chip || !chip.dataset.plat) return;
+  for (const b of document.querySelectorAll(".chip-btn")) b.setAttribute("aria-pressed", "false");
+  chip.setAttribute("aria-pressed", "true");
+  PLAT_FILTER = chip.dataset.plat;
+  const { from, to } = rangeBounds();
+  renderAllPosts(POSTS.filter(p => p.Published && p.Published >= from && p.Published <= to));
+});
+
+document.getElementById("custom-btn").addEventListener("click", () => {
+  selectRangeBtn(document.getElementById("custom-btn"));
+  const box = document.getElementById("custom-inputs");
+  box.hidden = false;
+  const fromEl = document.getElementById("date-from");
+  const toEl = document.getElementById("date-to");
+  if (!fromEl.value) {
+    const { from, to } = rangeBounds();
+    fromEl.value = from;
+    toEl.value = to;
+  }
+});
+
+for (const id of ["date-from", "date-to"]) {
+  document.getElementById(id).addEventListener("change", () => {
+    const f = document.getElementById("date-from").value;
+    const t = document.getElementById("date-to").value;
+    if (f && t && f <= t) {
+      RANGE = { from: f, to: t };
+      render();
+    }
+  });
+}
+
+document.getElementById("print-btn").addEventListener("click", () => window.print());
 
 (async () => {
   const status = document.getElementById("status");
@@ -550,7 +1182,14 @@ document.getElementById("filters").addEventListener("click", ev => {
     status.hidden = true;
     document.getElementById("filters").hidden = false;
     document.getElementById("app").hidden = false;
-    render(0);
+    const dates = SNAPSHOTS.map(s => s.Date).sort();
+    const fromEl = document.getElementById("date-from");
+    const toEl = document.getElementById("date-to");
+    if (dates.length) {
+      fromEl.min = toEl.min = dates[0];
+      fromEl.max = toEl.max = todayISO();
+    }
+    render();
   } catch (e) {
     status.className = "error";
     status.textContent = "Could not load data from Airtable: " + e.message +

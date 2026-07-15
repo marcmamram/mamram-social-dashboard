@@ -114,7 +114,18 @@ on GitHub they live in Actions secrets.
 
 ## Dashboard
 
-`docs/index.html` + `docs/config.js`. Host on GitHub Pages
+`docs/index.html` + `docs/config.js`. What it shows: follower growth,
+weekly/monthly net new followers, Instagram reach &amp; views, engagement rate,
+format performance (avg interactions by post type), best day to post, top-5
+posts, and a sortable all-posts table. Click any post row for a detail view
+with an embedded preview of the actual post and comparisons against similar
+posts (post embeds are loaded from instagram.com/facebook.com and only work
+for public posts). Date range presets + a custom from/to picker scope
+everything; the tiles show change vs the previous equal-length period. The
+"Print report" button (or ⌘P) produces a clean report of the current view
+for management meetings.
+
+Host on GitHub Pages
 (repository → Settings → Pages → deploy from branch, folder `/docs` — or
 serve the folder any other way). To preview locally:
 `python3 -m http.server 8123 --directory docs` then open
