@@ -1,7 +1,7 @@
 # Mamram Alumni Association — Social Media Dashboard
 
 Tracks growth and engagement of the association's **Facebook Page** and
-**Instagram Business account**. Metrics are collected weekly from the Meta
+**Instagram Business account**. Metrics are collected daily from the Meta
 Graph API, stored in **Airtable**, and shown on a static **dashboard** web page.
 
 This README is written for a non-technical maintainer. You do not need to
@@ -12,7 +12,7 @@ understand the code — only the three routine tasks below.
 ## How it works (the 60-second version)
 
 ```
-Meta Graph API ──▶ collector.py (runs every Monday via GitHub Actions)
+Meta Graph API ──▶ collector.py (runs daily via GitHub Actions)
                         │
                         ▼
                  Airtable base ("Snapshots" + "Posts" tables)
@@ -30,7 +30,7 @@ Meta Graph API ──▶ collector.py (runs every Monday via GitHub Actions)
 - **`docs/`** — a single web page that reads the Airtable data and draws
   the charts. No server needed.
 - **`.github/workflows/collect.yml`** — the schedule. GitHub runs the
-  collector automatically every Monday at 09:00 Israel time.
+  collector automatically every day at 09:00 Israel time.
 
 ---
 
@@ -42,7 +42,7 @@ Meta Graph API ──▶ collector.py (runs every Monday via GitHub Actions)
    plain English what to do (almost always: renew the Meta token, below).
 
 You can also just open the Airtable base: the **Snapshots** table should have
-two new rows (Facebook + Instagram) dated the most recent Monday.
+two new rows (Facebook + Instagram) dated today (or the most recent run).
 
 ## Routine task 2 — run the collector manually
 
@@ -58,7 +58,7 @@ The stored token is a **Page access token with no expiry date**, so under
 normal circumstances there is nothing to renew. It can still die in rare
 cases — the Facebook account that created it changes its password, gets
 logged out by a Facebook security check, or loses admin access to the Page.
-If that happens the weekly run **fails loudly** with a message pointing here.
+If that happens the daily run **fails loudly** with a message pointing here.
 To create a fresh token:
 
 1. Go to <https://developers.facebook.com/tools/explorer/> and log in with the
@@ -104,13 +104,14 @@ on GitHub they live in Actions secrets.
 
 ## Airtable schema
 
-**Snapshots** — one row per platform per week:
+**Snapshots** — one row per platform per run (daily):
 `Date`, `Platform` (Facebook/Instagram), `Followers`, `Reach`, `Impressions`,
 `Profile Views`, `Source` (API/Backfill).
 
-**Posts** — one row per post, updated on later runs:
+**Posts** — one row per post, refreshed on later runs while recent:
 `Post ID` (unique), `Platform`, `Published`, `Type`, `Permalink`, `Caption`
-(first 100 chars), `Reach`, `Likes`, `Comments`, `Shares`, `Saves`.
+(first 100 chars), `Reach`, `Likes`, `Comments`, `Shares`, `Saves`,
+`Last Synced` (date the metrics were last fetched from Meta).
 
 ## Dashboard
 
@@ -141,6 +142,16 @@ private (not part of v1).
 
 ## Known limitations (as of July 2026)
 
+- **Post likes/comments are a snapshot, not live.** Every number on the
+  dashboard is whatever the collector last stored in Airtable — it is not
+  fetched live from Instagram/Facebook (the public dashboard has no Meta
+  token, and one could not be exposed safely). A post keeps gaining likes and
+  comments after we capture it, so a *recent* post can read lower here than in
+  the Instagram app; older posts match exactly because they have stopped
+  changing. Each post's detail view shows its **Last Synced** date, and the
+  embedded post in that view shows the platform's current count. The collector
+  runs **daily** (see the workflow) so recent posts stay within ~24h, and it
+  refreshes every post published in the last ~35 days on each run.
 - **Facebook page-level Reach and Impressions are empty going forward** — Meta
   removed those metrics from the API for all apps on June 15, 2026. The
   collector logs this and skips them rather than failing; if Meta ships a

@@ -256,6 +256,7 @@ def collect_facebook(user_token, page_id, since):
             "Comments": comments,
             "Shares": (p.get("shares") or {}).get("count"),
             "Saves": None,  # not a Facebook concept
+            "Last Synced": dt.date.today().isoformat(),
         })
     log(f"  {len(posts)} Facebook post(s) in window.")
     return snapshot, posts
@@ -340,6 +341,7 @@ def collect_instagram(user_token, ig_id, since):
             "Comments": m.get("comments_count"),
             "Shares": metrics.get("shares"),
             "Saves": metrics.get("saved"),
+            "Last Synced": dt.date.today().isoformat(),
         })
     log(f"  {len(posts)} Instagram post(s) in window.")
     return snapshot, posts

@@ -195,7 +195,7 @@
 
 <header>
   <h1>Mamram Alumni Association — Social Media Dashboard</h1>
-  <p>Facebook &amp; Instagram growth and engagement · data refreshes weekly via the collector</p>
+  <p>Facebook &amp; Instagram growth and engagement · data refreshes daily via the collector</p>
   <p id="print-meta"></p>
 </header>
 
@@ -334,6 +334,14 @@ const addDays = (iso, n) => {
   return d.toISOString().slice(0, 10);
 };
 const todayISO = () => new Date().toISOString().slice(0, 10);
+// Monday of the ISO week containing `iso` — buckets snapshots into calendar
+// weeks so the New-followers chart is stable whether snapshots are weekly
+// (historical) or daily (going forward).
+const mondayOf = iso => {
+  const d = new Date(iso + "T00:00:00Z");
+  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+  return d.toISOString().slice(0, 10);
+};
 
 function pctChip(cur, prev, suffix) {
   const wrap = document.createElement("span");
@@ -817,6 +825,13 @@ function renderPostStats(el, post) {
   stat("Total interactions", fmt(eng));
   if (post.Reach) stat("Engagement ÷ reach", (eng / post.Reach * 100).toFixed(1) + "%");
 
+  const note = document.createElement("p");
+  note.style.cssText = "color: var(--text-muted); font-size: 12px; margin-top: 8px; line-height: 1.4;";
+  note.textContent = post["Last Synced"]
+    ? `These numbers were captured ${fmtDate(post["Last Synced"])} and don't update in real time — a recent post keeps gaining likes and comments after that. The embedded post shows Instagram's current count.`
+    : "These numbers are a snapshot from the weekly sync and don't update in real time. The embedded post shows the current count.";
+  el.appendChild(note);
+
   h4("How it compares (total interactions)");
   const cmp = (label, baseArr) => {
     const row = document.createElement("div");
@@ -960,7 +975,9 @@ function render() {
       if (!inR(d)) continue;
       const gap = (new Date(d) - new Date(rows[i - 1].Date)) / 86400000;
       if (gap > 45) continue; // don't bridge holes in the data
-      const key = monthlyAdds ? d.slice(0, 7) : d;
+      // bucket by calendar week (or month) so daily and weekly snapshots
+      // aggregate consistently
+      const key = monthlyAdds ? d.slice(0, 7) : mondayOf(d);
       buckets.set(key, true);
       values[key] = (values[key] || 0) + (rows[i].Followers - rows[i - 1].Followers);
     }
@@ -969,7 +986,7 @@ function render() {
   const addCats = [...buckets.keys()].sort().map(k => ({
     key: k,
     label: monthlyAdds ? fmtMonth(k + "-15") : fmtDate(k).replace(/ \d{4}$/, ""),
-    tipLabel: monthlyAdds ? fmtMonth(k + "-15") : "week ending " + fmtDate(k),
+    tipLabel: monthlyAdds ? fmtMonth(k + "-15") : "week of " + fmtDate(k),
   }));
   legend(document.getElementById("lg-adds"), addSeries, true);
   barChart(document.getElementById("ch-adds"), addCats, addSeries,

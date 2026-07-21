@@ -107,6 +107,7 @@ def all_media_posts(ig_id, token):
             "Comments": m.get("comments_count"),
             "Shares": metrics.get("shares"),
             "Saves": metrics.get("saved"),
+            "Last Synced": dt.date.today().isoformat(),
         })
         if i % 50 == 0:
             log(f"  [{i}/{len(media)}] media insights fetched…")

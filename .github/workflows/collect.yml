@@ -2,8 +2,10 @@ name: Collect social metrics
 
 on:
   schedule:
-    # Every Monday 06:00 UTC (09:00 Israel time)
-    - cron: "0 6 * * 1"
+    # Daily 06:00 UTC (09:00 Israel time). Daily (not weekly) keeps recent
+    # posts' like/comment counts within ~24h of Instagram — they keep gaining
+    # engagement after publish, so a weekly snapshot lagged noticeably.
+    - cron: "0 6 * * *"
   workflow_dispatch: {}
 
 jobs:
