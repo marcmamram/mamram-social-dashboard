@@ -220,11 +220,15 @@ def collect_facebook(user_token, page_id, since):
     try:
         raw = list(_paged_posts(page_id, page_token, rich_fields, since))
     except GraphError as e:
-        if e.code != 10:
-            raise
+        # Code 10 = missing pages_read_user_content. But the nested summary
+        # expansions can also trip Meta's per-request data cap ("please reduce
+        # the amount of data…", code 1) on wider windows. Either way the base
+        # fields are always safe, so fall back to them rather than failing the
+        # whole platform; reactions then come from post insights.
         have_summaries = False
-        log("  token lacks 'pages_read_user_content' — reading reactions via post "
-            "insights instead (comment counts unavailable; see README).")
+        log(f"  rich post fields unavailable ({e.message[:70]}) — reading "
+            "reactions via post insights instead (comment counts unavailable; "
+            "see README).")
         raw = list(_paged_posts(page_id, page_token, base_fields, since))
 
     for p in raw:
@@ -263,17 +267,31 @@ def collect_facebook(user_token, page_id, since):
 
 
 def _paged_posts(page_id, token, fields, since):
-    params = {"fields": fields, "limit": 100, "since": int(since.timestamp())}
+    # Small page size: the attachments expansion across many posts can trip
+    # Meta's per-request data cap ("please reduce the amount of data…"),
+    # especially under load. 25/page stays comfortably under it and just pages
+    # more often (trivial at this volume).
+    params = {"fields": fields, "limit": 25, "since": int(since.timestamp())}
+    # An error on the FIRST request propagates, so the caller can fall back to
+    # a lighter field set. Errors on later pages must not throw away the posts
+    # already fetched — Meta returns a paging cursor even when the results are
+    # complete, and following it can trip the per-request data cap.
     d = graph_get(f"{page_id}/posts", token, **params)
     while True:
-        yield from d.get("data") or []
+        batch = d.get("data") or []
+        yield from batch
         next_url = (d.get("paging") or {}).get("next")
-        if not next_url:
+        if not next_url or not batch:
             return
-        d = _http_json(next_url)
+        try:
+            d = _http_json(next_url)
+        except RuntimeError as e:
+            log(f"  stopped paging posts early ({e}); keeping what was fetched.")
+            return
         if "error" in d:
-            err = d["error"]
-            raise GraphError(err.get("code"), err.get("message", str(err)))
+            log("  stopped paging posts early "
+                f"({d['error'].get('message', '')[:70]}); keeping what was fetched.")
+            return
 
 
 # --------------------------------------------------------------- Instagram
