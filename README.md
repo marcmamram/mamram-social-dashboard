@@ -15,10 +15,10 @@ understand the code — only the three routine tasks below.
 Meta Graph API ──▶ collector.py (runs daily via GitHub Actions)
                         │
                         ▼
-                 Airtable base ("Snapshots" + "Posts" tables)
+         Airtable ("Snapshots" + "Posts" + "Takeaways")
                         │
                         ▼
-              docs/index.html (GitHub Pages, reads Airtable)
+   docs/index.html  (summary)  ·  docs/details.html  (full charts)
 ```
 
 - **`collector.py`** — pulls current follower counts, reach, views, profile
@@ -27,8 +27,15 @@ Meta Graph API ──▶ collector.py (runs daily via GitHub Actions)
   updates the existing rows instead of duplicating them.
 - **`backfill.py`** — one-time import of historical Facebook CSV exports
   (already run; you should never need it again).
-- **`docs/`** — a single web page that reads the Airtable data and draws
-  the charts. No server needed.
+- **`takeaway.py`** — writes a plain-English summary of the week ("Instagram
+  reach grew 78% this week…") into Airtable. Rule-based, no AI, no extra cost.
+  Runs automatically right after the collector.
+- **`docs/`** — the website, two pages, no server needed:
+  **`index.html`** (the landing page) is the **Summary view** — a green/yellow/
+  red badge and one sentence answering "is this going well?", for management.
+  **`details.html`** is the **Details view** — the full charts and tables, for
+  whoever manages the accounts. `shared.js` holds the data loading and scoring
+  used by both, so the two pages can never disagree.
 - **`.github/workflows/collect.yml`** — the schedule. GitHub runs the
   collector automatically every day at 09:00 Israel time.
 
@@ -108,6 +115,10 @@ on GitHub they live in Actions secrets.
 `Date`, `Platform` (Facebook/Instagram), `Followers`, `Reach`, `Impressions`,
 `Profile Views`, `Source` (API/Backfill).
 
+**Takeaways** — one row per week, refreshed on each daily run:
+`Week Of` (Monday, the upsert key), `Weekly Takeaway` (the generated text),
+`Generated`, `Window` (the exact dates compared, for transparency).
+
 **Posts** — one row per post, refreshed on later runs while recent:
 `Post ID` (unique), `Platform`, `Published`, `Type`, `Permalink`, `Caption`
 (first 100 chars), `Reach`, `Likes`, `Comments`, `Shares`, `Saves`,
@@ -115,7 +126,32 @@ on GitHub they live in Actions secrets.
 
 ## Dashboard
 
-`docs/index.html` + `docs/config.js`. What it shows: follower growth,
+### Summary view (`docs/index.html`) — the landing page
+
+One status badge (🟢 On track / 🟡 Mixed / 🔴 Underperforming), one sentence
+explaining it, and a Week/Month/Quarter toggle. Nothing to scroll or interpret.
+
+The badge is a weighted score comparing the selected period against the one
+before it — **engagement rate 50%, follower growth 30%, reach 20%** (engagement
+is weighted highest because reach can be inflated by paid boosts). Tune the
+weights and thresholds at the top of `docs/shared.js`; the matching thresholds
+for the written takeaway are at the top of `takeaway.py`.
+
+Two deliberate behaviours worth knowing:
+
+- **Follower growth is shown as counts, never a percentage** ("+78, up from
+  −4"). A percentage between two small net changes produces nonsense like
+  "up 2050%", which makes a dashboard look broken.
+- **A platform that cannot be measured is named, not hidden** ("Facebook: no
+  measurable change"), so a green badge is never mistaken for a verdict on a
+  channel we had no data for.
+
+The wording describes the *channel's* performance, never a person's — these
+screenshots circulate without context.
+
+### Details view (`docs/details.html`)
+
+What it shows: follower growth,
 weekly/monthly net new followers, Instagram reach &amp; views, engagement rate,
 format performance (avg interactions by post type), best day to post, top-5
 posts, and a sortable all-posts table. Click any post row for a detail view
@@ -182,8 +218,11 @@ private (not part of v1).
 | `collector.py` | Weekly metrics collector (no dependencies beyond Python 3) |
 | `backfill.py` | One-time historical CSV import, Facebook (already run) |
 | `backfill_instagram.py` | One-time Instagram history pull from the API (already run) |
+| `takeaway.py` | Weekly plain-English summary generator (runs after the collector) |
+| `docs/index.html` | Summary view — status badge, the landing page |
+| `docs/shared.js` | Data loading + verdict scoring shared by both views |
 | `csv/` | The original Meta Business Suite exports (Facebook, 2024-01 → 2026-07). Kept on the maintainer's machine only — not committed to the public repo |
-| `docs/index.html` | The dashboard page |
+| `docs/details.html` | Details view — full charts and tables |
 | `docs/config.js` | Dashboard's Airtable credentials (public, read-only) |
 | `docs/config.example.js` | Template for the above |
 | `.github/workflows/collect.yml` | Weekly schedule + manual run button |
