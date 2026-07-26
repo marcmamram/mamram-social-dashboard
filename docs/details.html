@@ -594,7 +594,8 @@ function buildPostsTable(posts, { sortable = false, onSort = null, sortState = n
   const thead = table.createTHead().insertRow();
   const cols = [
     ["Platform", null, null], ["Date", null, "Published"], ["Type", null, "Type"],
-    ["Caption", null, null], ["Reach", "num", "Reach"], ["Likes", "num", "Likes"],
+    ["Caption", null, null], ["Views", "num", "Views"], ["Reach", "num", "Reach"],
+    ["Likes", "num", "Likes"],
     ["Comments", "num", "Comments"], ["Shares", "num", "Shares"],
     ["Saves", "num", "Saves"], ["Total", "num", "__eng"],
   ];
@@ -637,7 +638,7 @@ function buildPostsTable(posts, { sortable = false, onSort = null, sortState = n
     cap.dir = "auto";
     cap.textContent = p.Caption || "—";
     cap.title = p.Caption || "";
-    for (const k of ["Reach", "Likes", "Comments", "Shares", "Saves"]) {
+    for (const k of ["Views", "Reach", "Likes", "Comments", "Shares", "Saves"]) {
       const td = tr.insertCell();
       td.className = "num";
       td.textContent = fmt(p[k]);
@@ -798,8 +799,13 @@ function renderPostStats(el, post) {
 
   h4("This post");
   stat("Published", post.Published ? fmtDate(post.Published) : "—");
-  stat("Reach", fmt(post.Reach));
-  stat("Likes", fmt(post.Likes));
+  // Views is the headline number the apps show — list it first, and label
+  // reach as the distinct thing it is so the two are never confused.
+  stat("Views (plays/displays)", fmt(post.Views));
+  stat("Reach (unique accounts)", fmt(post.Reach));
+  // On Facebook this column holds ALL reaction types, which is what the post
+  // itself displays; on Instagram it is the like count.
+  stat(post.Platform === FB ? "Reactions (all types)" : "Likes", fmt(post.Likes));
   stat("Comments", fmt(post.Comments));
   if (post.Platform === IG) stat("Saves", fmt(post.Saves));
   stat("Shares", fmt(post.Shares));

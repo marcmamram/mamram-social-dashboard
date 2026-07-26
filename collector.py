@@ -245,8 +245,20 @@ def collect_facebook(user_token, page_id, since):
             comments = ((p.get("comments") or {}).get("summary") or {}).get("total_count")
         else:
             reactions = insight_value(p["id"], page_token, "post_reactions_by_type_total")
-            if isinstance(reactions, dict):
+            # An EMPTY dict means Meta returned no breakdown — that is "unknown",
+            # not "zero". Summing it to 0 and writing that would overwrite a
+            # good value with 0 and permanently zero out any post that has
+            # since aged past the refresh window. Leave it None so the upsert
+            # omits the field and keeps whatever is already stored.
+            if isinstance(reactions, dict) and reactions:
                 likes = sum(reactions.values())
+
+        # Views: Meta killed post-level reach/impressions for Pages, but video
+        # plays survive and are what a viewer sees under a Reel.
+        views = None
+        if post_type in ("Video", "Reel"):
+            views = insight_value(p["id"], page_token, "post_video_views")
+
         posts.append({
             "Post ID": p["id"],
             "Platform": "Facebook",
@@ -256,6 +268,9 @@ def collect_facebook(user_token, page_id, since):
             "Caption": (p.get("message") or "")[:100],
             # post-level reach (post_impressions_unique) was deprecated by Meta
             "Reach": None,
+            "Views": views,
+            # NB: this is TOTAL reactions (like + love + wow + …), which is what
+            # Facebook shows under a post — not the "like" type alone.
             "Likes": likes,
             "Comments": comments,
             "Shares": (p.get("shares") or {}).get("count"),
@@ -295,6 +310,24 @@ def _paged_posts(page_id, token, fields, since):
 
 
 # --------------------------------------------------------------- Instagram
+
+def ig_media_metrics(media_id, token, log_prefix=""):
+    """Per-post Instagram insights.
+
+    Meta rejects the whole request if any single metric is unsupported for
+    that media type/era (older archive posts have no 'views'), so fall back
+    to the core set rather than losing reach along with it.
+    """
+    for metric in ("reach,views,shares,saved", "reach,shares,saved"):
+        try:
+            ins = graph_get(f"{media_id}/insights", token, metric=metric)
+            return {e["name"]: (e.get("values") or [{}])[-1].get("value")
+                    for e in ins.get("data") or []}
+        except GraphError as e:
+            last = e
+    log(f"{log_prefix}insights unavailable for media {media_id} — {last.message[:70]}")
+    return {}
+
 
 def ig_media_type(media):
     if media.get("media_product_type") == "REELS":
@@ -339,14 +372,10 @@ def collect_instagram(user_token, ig_id, since):
         media.extend(d.get("data") or [])
 
     for m in media:
-        metrics = {}
-        try:
-            ins = graph_get(f"{m['id']}/insights", user_token,
-                            metric="reach,shares,saved")
-            metrics = {e["name"]: (e.get("values") or [{}])[-1].get("value")
-                       for e in ins.get("data") or []}
-        except GraphError as e:
-            log(f"  insights unavailable for media {m['id']} — {e.message[:80]}")
+        # "views" is the number Instagram shows people under a post; it runs
+        # ~2x reach, so omitting it made the dashboard look wrong to anyone
+        # comparing against the app.
+        metrics = ig_media_metrics(m["id"], user_token, log_prefix="  ")
         posts.append({
             "Post ID": m["id"],
             "Platform": "Instagram",
@@ -355,6 +384,7 @@ def collect_instagram(user_token, ig_id, since):
             "Permalink": m.get("permalink"),
             "Caption": (m.get("caption") or "")[:100],
             "Reach": metrics.get("reach"),
+            "Views": metrics.get("views"),
             "Likes": m.get("like_count"),
             "Comments": m.get("comments_count"),
             "Shares": metrics.get("shares"),

@@ -29,8 +29,8 @@ import sys
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from collector import (GraphError, airtable_upsert, graph_get, ig_media_type,
-                       load_env, log)
+from collector import (GraphError, airtable_upsert, graph_get, ig_media_metrics,
+                       ig_media_type, load_env, log)
 
 
 def week_snapshot(ig_id, token, monday):
@@ -86,15 +86,7 @@ def all_media_posts(ig_id, token):
     log(f"  {len(media)} media items total")
 
     for i, m in enumerate(media, 1):
-        metrics = {}
-        try:
-            ins = graph_get(f"{m['id']}/insights", token,
-                            metric="reach,shares,saved")
-            metrics = {e["name"]: (e.get("values") or [{}])[-1].get("value")
-                       for e in ins.get("data") or []}
-        except GraphError as e:
-            log(f"  [{i}/{len(media)}] no insights for {m['id']} "
-                f"({e.message[:60]}) — keeping likes/comments only")
+        metrics = ig_media_metrics(m["id"], token, log_prefix=f"  [{i}/{len(media)}] ")
         posts.append({
             "Post ID": m["id"],
             "Platform": "Instagram",
@@ -103,6 +95,7 @@ def all_media_posts(ig_id, token):
             "Permalink": m.get("permalink"),
             "Caption": (m.get("caption") or "")[:100],
             "Reach": metrics.get("reach"),
+            "Views": metrics.get("views"),
             "Likes": m.get("like_count"),
             "Comments": m.get("comments_count"),
             "Shares": metrics.get("shares"),

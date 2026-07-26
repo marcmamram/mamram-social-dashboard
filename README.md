@@ -121,8 +121,19 @@ on GitHub they live in Actions secrets.
 
 **Posts** — one row per post, refreshed on later runs while recent:
 `Post ID` (unique), `Platform`, `Published`, `Type`, `Permalink`, `Caption`
-(first 100 chars), `Reach`, `Likes`, `Comments`, `Shares`, `Saves`,
+(first 100 chars), `Views`, `Reach`, `Likes`, `Comments`, `Shares`, `Saves`,
 `Last Synced` (date the metrics were last fetched from Meta).
+
+**Views vs Reach — these are different numbers and people confuse them.**
+*Views* is how many times the post was played or displayed (the big number
+Instagram shows you); *Reach* is how many unique accounts saw it. Views runs
+roughly **2x** reach on this account. If someone says "the dashboard is
+wrong, Instagram says 50K", they are almost always comparing Instagram's
+*views* against our *reach* — check the Views column first.
+
+On **Facebook**, the `Likes` column holds **all reaction types** added
+together (like + love + wow …), because that is the number Facebook displays
+under a post. The post detail view labels it "Reactions (all types)".
 
 ## Dashboard
 
@@ -178,6 +189,9 @@ private (not part of v1).
 
 ## Known limitations (as of July 2026)
 
+- **A post published today reads low or zero until the next run.** The
+  collector captures a post minutes after it goes out, when it genuinely has
+  ~0 reach; the next daily run corrects it. Nothing is broken.
 - **Post likes/comments are a snapshot, not live.** Every number on the
   dashboard is whatever the collector last stored in Airtable — it is not
   fetched live from Instagram/Facebook (the public dashboard has no Meta
