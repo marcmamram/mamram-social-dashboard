@@ -165,7 +165,12 @@ on an ordinary week gets ignored within a fortnight:
   N before them, where **N is taken from this account's own posting rate for
   that range** (currently ~3 for a week, ~13 for a month, ~41 for a quarter,
   recalculated automatically as the cadence changes). The summary page always
-  prints which posts were used and how many are still too new to count.
+  prints which posts were used and how many are still gaining.
+
+**The written weekly takeaway uses exactly the same rules** (`takeaway.py`
+mirrors `docs/shared.js`), so the two pages can never disagree about how a
+week went. If you change a threshold, change it in both — the constants sit at
+the top of each file with matching names.
 - **Everything is anchored to the last day with data, not today.** The
   collector runs at 09:00, so before then "today" is empty; without this the
   current window measured 6 days against a 7-day baseline and lost.

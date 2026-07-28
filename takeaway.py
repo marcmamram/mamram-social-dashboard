@@ -45,6 +45,8 @@ BASELINE_WEEKS = 8                # history used for "unusually fast" follower m
 # against matured ones invents a collapse every week, so posts younger than
 # this are left out of week-on-week engagement comparisons on both sides.
 POST_MATURITY_DAYS = 3
+MIN_POSTS_FOR_BLOCK = 2           # floor for the per-period post sample size
+BASELINE_BLOCKS = 8               # earlier blocks the baseline is taken from
 
 
 # ------------------------------------------------------------ Airtable IO
@@ -93,6 +95,37 @@ def pct_change(cur, prev):
 def engagement(p):
     return ((p.get("Likes") or 0) + (p.get("Comments") or 0)
             + (p.get("Shares") or 0) + (p.get("Saves") or 0))
+
+
+def typical_post_count(posts, plat, days, today):
+    """How many posts a typical `days`-long period holds for this platform.
+
+    Mirrors typicalPostCount() in docs/shared.js — engagement is sampled in
+    POSTS, not days, because this account posts irregularly and a fixed
+    calendar window often contains nothing finished enough to judge.
+    """
+    counts = []
+    for i in range(max(1, 365 // days)):
+        end = today - dt.timedelta(days=days * i)
+        start = end - dt.timedelta(days=days - 1)
+        counts.append(sum(1 for p in posts
+                          if p.get("Platform") == plat and p.get("Published")
+                          and start.isoformat() <= p["Published"] <= end.isoformat()))
+    return max(MIN_POSTS_FOR_BLOCK, round(statistics.median(counts) or 0))
+
+
+def post_blocks(posts, plat, n, today):
+    """Finished posts for `plat`, newest first, chunked into blocks of `n`."""
+    matured = sorted(
+        (p for p in posts if p.get("Platform") == plat and is_matured(p, today)),
+        key=lambda p: p["Published"], reverse=True)
+    return [matured[i * n:(i + 1) * n]
+            for i in range(len(matured) // n)][:BASELINE_BLOCKS + 1]
+
+
+def block_stat(block, fn):
+    vals = [v for v in (fn(p) for p in block) if v is not None]
+    return statistics.mean(vals) if vals else None
 
 
 def is_matured(p, today):
@@ -150,12 +183,13 @@ def slot_trend(ctx):
                     f"{c['post_count']} post{'s' if c['post_count'] != 1 else ''} this week."))
             elif c["eng_delta_pct"] is not None:
                 d = c["eng_delta_pct"]
+                over = f"over its last {c['sample_n']} posts"
                 if d > TREND_THRESHOLD_PCT:
-                    parts.append((plat, d, f"{plat} engagement grew {fmt_pct(d)} this week."))
+                    parts.append((plat, d, f"{plat} engagement grew {fmt_pct(d)} {over}."))
                 elif d < -TREND_THRESHOLD_PCT:
-                    parts.append((plat, d, f"{plat} engagement dropped {fmt_pct(d)} this week."))
+                    parts.append((plat, d, f"{plat} engagement dropped {fmt_pct(d)} {over}."))
                 else:
-                    parts.append((plat, d, f"{plat} engagement held steady this week ({d:+.0f}%)."))
+                    parts.append((plat, d, f"{plat} engagement held steady {over} ({d:+.0f}%)."))
             continue
         if delta > TREND_THRESHOLD_PCT:
             parts.append((plat, delta, f"{plat} reach grew {fmt_pct(delta)} this week."))
@@ -187,8 +221,10 @@ def slot_trend(ctx):
 def slot_best_post(ctx):
     """Slot 2 — a genuine standout only. Needs engagement rates, so this is
     Instagram-only in practice (Facebook post reach is gone)."""
+    # Same pool the engagement figure uses — the most recent finished posts —
+    # so the "standout" is always drawn from posts that have actually settled.
     rated = [(p, r) for p, r in
-             ((p, eng_rate(p)) for p in ctx["matured_posts"]) if r]
+             ((p, eng_rate(p)) for p in ctx["sample_posts"]) if r]
     if len(rated) < 2:
         return []
     rates = [r for _, r in rated]
@@ -225,14 +261,18 @@ def slot_gap_or_dip(ctx):
 
 
 def slot_too_fresh(ctx):
-    """Say when the week's posts are too new to judge, so a missing trend
-    sentence isn't read as silence — or worse, as a slowdown."""
+    """Note posts still accumulating, in the same words the summary page uses.
+
+    Engagement itself is always judged (over the last N finished posts), so
+    this never claims otherwise — it only says which posts aren't in the
+    figure yet.
+    """
     fresh = sum(ctx[p].get("fresh_posts", 0) for p in PLATFORMS)
-    judged = len(ctx["matured_posts"])
-    if fresh and not judged:
-        return [f"{fresh} post{'s' if fresh > 1 else ''} went out in the last "
-                f"{POST_MATURITY_DAYS} days — too recent to judge engagement yet."]
-    return []
+    if not fresh:
+        return []
+    return [f"{fresh} post{'s' if fresh > 1 else ''} from the last "
+            f"{POST_MATURITY_DAYS} days {'are' if fresh > 1 else 'is'} still "
+            "gaining and not counted yet."]
 
 
 def slot_milestone(ctx):
@@ -268,6 +308,7 @@ def build_context(snaps, posts, today):
 
     ctx = {"all_posts": cur_posts,
            "matured_posts": [p for p in cur_posts if is_matured(p, today)],
+           "sample_posts": [],   # filled per-platform below (most recent finished block)
            "window": f"{win_start} to {today_iso} vs {prev_start} to {prev_end}"}
 
     for plat in PLATFORMS:
@@ -286,17 +327,25 @@ def build_context(snaps, posts, today):
         followers = snapshot_on_or_before(snaps, plat, today_iso, "Followers")
         prev_followers = snapshot_on_or_before(snaps, plat, prev_end, "Followers")
 
-        # Week-on-week comparisons use matured posts only (see
-        # POST_MATURITY_DAYS); fresh posts are still climbing and would fake a
-        # collapse every week. The headline totals still report everything.
+        # Engagement is compared over the last N finished posts against the N
+        # before them — the same sampling the summary page uses (shared.js), so
+        # the two never contradict each other. Calendar weeks contain nothing
+        # judgeable about half the time on this account.
         pc_mature = [p for p in pc if is_matured(p, today)]
-        pp_mature = [p for p in pp if is_matured(p, today)]
-        eng_now = sum(engagement(p) for p in pc)          # reported as-is
+        eng_now = sum(engagement(p) for p in pc)          # headline: reported as-is
         eng_prev = sum(engagement(p) for p in pp)
-        eng_now_m = sum(engagement(p) for p in pc_mature)  # compared like-for-like
-        eng_prev_m = sum(engagement(p) for p in pp_mature)
-        rates_now = [r for r in (eng_rate(p) for p in pc_mature) if r]
-        rates_prev = [r for r in (eng_rate(p) for p in pp_mature) if r]
+
+        n_sample = typical_post_count(posts, plat, WINDOW_DAYS, today)
+        blocks = post_blocks(posts, plat, n_sample, today)
+        # rate where reach exists (Instagram); mean interactions per post
+        # otherwise (Facebook has no post-level reach since Meta removed it)
+        stat = eng_rate if any(eng_rate(p) for b in blocks for p in b) else engagement
+        block_vals = [v for v in (block_stat(b, stat) for b in blocks) if v is not None]
+        cur_block = block_vals[0] if block_vals else None
+        base_block = (statistics.median(block_vals[1:]) if len(block_vals) >= 2 else None)
+        sample_dates = sorted(p["Published"] for p in blocks[0]) if blocks else []
+        if blocks:
+            ctx["sample_posts"].extend(blocks[0])
 
         # typical weekly follower movement over the trailing baseline
         weekly_deltas = []
@@ -315,12 +364,14 @@ def build_context(snaps, posts, today):
             "followers": followers,
             "prev_followers": prev_followers,
             "reach_delta_pct": pct_change(reach_now, reach_prev),
-            # only compare when both sides have matured posts to compare
-            "eng_delta_pct": (pct_change(eng_now_m, eng_prev_m)
-                              if (pc_mature and pp_mature) else None),
+            # last N finished posts vs the median of earlier blocks of N
+            "eng_delta_pct": pct_change(cur_block, base_block),
             "fresh_posts": len(pc) - len(pc_mature),
-            "eng_rate": statistics.mean(rates_now) if rates_now else None,
-            "prev_eng_rate": statistics.mean(rates_prev) if rates_prev else None,
+            "sample_n": n_sample if blocks else 0,
+            "sample_from": sample_dates[0] if sample_dates else None,
+            "sample_to": sample_dates[-1] if sample_dates else None,
+            "eng_rate": cur_block,
+            "prev_eng_rate": base_block,
             "follower_delta": (followers - prev_followers)
                               if (followers is not None and prev_followers is not None) else None,
             "typical_follower_delta": (statistics.mean(weekly_deltas)
