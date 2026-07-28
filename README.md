@@ -154,11 +154,18 @@ on an ordinary week gets ignored within a fortnight:
 - **The baseline is the median of the previous 8 periods, not just the last
   one.** One exceptional week would otherwise make the next ordinary week look
   like a collapse.
-- **Posts younger than 3 days are left out of engagement comparisons**, on
-  both sides. A post keeps gaining for days after it goes out — on this
-  account the median engagement rate roughly doubles between day 2 and day 7 —
-  so fresh posts scored against matured ones invent a slump every week. When a
-  period has nothing mature enough to judge, the page says so.
+- **Posts younger than 3 days are left out of engagement comparisons.** A
+  post keeps gaining for days after it goes out — on this account the median
+  engagement rate roughly doubles between day 2 and day 7 — so fresh posts
+  scored against matured ones invent a slump every week.
+- **Engagement is measured over a number of POSTS, not a number of days.**
+  This account posts irregularly (0–13 a week, median 2.5), so a fixed 7-day
+  window left the engagement metric — half the entire score — missing about
+  half of all weeks. Instead it compares the last N finished posts against the
+  N before them, where **N is taken from this account's own posting rate for
+  that range** (currently ~3 for a week, ~13 for a month, ~41 for a quarter,
+  recalculated automatically as the cadence changes). The summary page always
+  prints which posts were used and how many are still too new to count.
 - **Everything is anchored to the last day with data, not today.** The
   collector runs at 09:00, so before then "today" is empty; without this the
   current window measured 6 days against a 7-day baseline and lost.

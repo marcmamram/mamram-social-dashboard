@@ -204,12 +204,21 @@ function computeVerdict(data, rangeKey) {
     return Math.round((endS.value - startS.value) / span * days);
   }
 
-  const meanRate = (plat, i) => {
-    const rates = posts
-      .filter(p => p.Platform === plat && inRange(p.Published, periodStart(i), periodEnd(i)))
-      .filter(matured).map(engRate).filter(r => r);
-    return rates.length >= MIN_POSTS_FOR_RATE ? mean(rates) : null;
-  };
+  /* How many posts a typical period of this length actually contains for this
+   * account, from its own history. Calendar windows fit this account badly
+   * (0–13 posts a week), so the engagement sample is sized in POSTS, and this
+   * keeps "the last N posts" aligned with what a week/month/quarter really
+   * means here rather than a guessed constant. */
+  function typicalPostCount(plat) {
+    const counts = [];
+    const blocks = Math.max(1, Math.floor(365 / days));
+    for (let i = 0; i < blocks; i++) {
+      const end = addDays(to, -(days * i));
+      const start = addDays(end, -(days - 1));
+      counts.push(posts.filter(p => p.Platform === plat && inRange(p.Published, start, end)).length);
+    }
+    return Math.max(MIN_POSTS_FOR_RATE, Math.round(median(counts) || 0));
+  }
 
   const reachAt = (plat, i) => snapshotAt(snapshots, plat, periodEnd(i), "Reach");
 
@@ -229,19 +238,36 @@ function computeVerdict(data, rangeKey) {
   for (const plat of PLATFORMS) {
     const curPosts = posts.filter(p => p.Platform === plat && inRange(p.Published, from, to));
 
-    // Engagement rate — matured posts only, on every side, so a period is
-    // never marked down merely for containing fresh posts.
-    const curRate = meanRate(plat, 0);
-    const rateBase = baselineOf(i => meanRate(plat, i));
-    if (curRate != null && rateBase) {
-      metrics.push({ key: "engagementRate", platform: plat, label: "engagement rate",
-        delta: pctChange(curRate, rateBase.value), baselineN: rateBase.n });
-    } else if (curPosts.length) {
-      const tooNew = curPosts.filter(p => !matured(p)).length;
-      if (tooNew) {
-        notes.push(`${plat}: ${tooNew} recent post${tooNew > 1 ? "s are" : " is"} `
-                 + "too new to judge engagement yet");
-      }
+    /* Engagement rate — the last N matured posts against the N before them,
+     * and the N before those, taking the median of the earlier blocks as the
+     * baseline. Sized in posts rather than dates because a fixed 7-day window
+     * left this metric — half the whole score — missing about half of all
+     * weeks on an account that posts irregularly. */
+    const sampleSize = typicalPostCount(plat);
+    const rated = posts
+      .filter(p => p.Platform === plat && matured(p))
+      .map(p => ({ p, r: engRate(p) }))
+      .filter(x => x.r)
+      .sort((a, b) => a.p.Published < b.p.Published ? 1 : -1);   // newest first
+    const blocks = [];
+    for (let i = 0; (i + 1) * sampleSize <= rated.length && i <= BASELINE_PERIODS; i++) {
+      blocks.push(rated.slice(i * sampleSize, (i + 1) * sampleSize));
+    }
+    if (blocks.length >= 2) {
+      const rateOf = b => mean(b.map(x => x.r));
+      const dates = blocks[0].map(x => x.p.Published).sort();
+      metrics.push({
+        key: "engagementRate", platform: plat, label: "engagement rate",
+        delta: pctChange(rateOf(blocks[0]), median(blocks.slice(1).map(rateOf))),
+        baselineN: blocks.length - 1,
+        sample: { n: sampleSize, from: dates[0], to: dates[dates.length - 1] },
+      });
+    } else if (rated.length) {
+      // Some rated posts exist, just not enough blocks yet — a real "wait for
+      // more data". A platform with NO rated posts at all (Facebook, whose
+      // post-level reach Meta removed) gets no note: that is a permanent
+      // platform limitation documented in the README, not a freshness issue.
+      notes.push(`${plat}: not enough finished posts yet to judge engagement`);
     }
 
     // Follower growth — counts, never a percentage between two small numbers.
@@ -276,6 +302,20 @@ function computeVerdict(data, rangeKey) {
   // than silently omitted, so a verdict is never read as covering a platform
   // it could not actually measure.
   const silent = PLATFORMS.filter(p => !metrics.some(m => m.platform === p));
+
+  /* Always state what the engagement figure was actually measured on, and how
+   * many posts are still too new to count. Shown every time rather than only
+   * on failure, so the number is never a black box. */
+  for (const m of metrics.filter(m => m.sample)) {
+    notes.push(`${m.platform} engagement: last ${m.sample.n} finished post`
+             + `${m.sample.n > 1 ? "s" : ""} (${fmtDate(m.sample.from)} – ${fmtDate(m.sample.to)})`);
+  }
+  const fresh = posts.filter(p => p.Published && p.Published <= to
+                 && daysBetween(p.Published, to) < POST_MATURITY_DAYS).length;
+  if (fresh) {
+    notes.push(`${fresh} post${fresh > 1 ? "s" : ""} from the last `
+             + `${POST_MATURITY_DAYS} days still gaining — not counted yet`);
+  }
 
   if (!metrics.length) {
     return { badge: "unknown", emoji: "⚪", text: "Not enough data yet",
