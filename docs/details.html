@@ -909,17 +909,26 @@ function render() {
     }
     tiles.appendChild(t);
   }
-  const igReach = snaps.filter(s => s.Platform === IG && s.Reach != null).at(-1);
-  const igReachPrev = SNAPSHOTS.filter(s =>
-    s.Platform === IG && s.Reach != null && inPrev(s.Date)).at(-1);
-  const reachTile = tile("Instagram reach (28 days)", COLOR[IG],
-    igReach ? fmt(igReach.Reach) : "—");
+  /* Reach is NOT additive — a person seen on two days is one account, so
+   * period totals cannot be summed from the stored figures, and Meta refuses
+   * to compute reach for any window longer than 30 days. Each stored value is
+   * Meta's own true 28-day unique reach, so the honest period-scoped figure is
+   * their AVERAGE across the range: the typical reach level while that period
+   * ran. It moves with the selector and never overstates. */
+  const avgOf = arr => arr.length
+    ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : null;
+  const igReachNow = avgOf(snaps.filter(s => s.Platform === IG && s.Reach != null)
+                                .map(s => s.Reach));
+  const igReachPrev = avgOf(SNAPSHOTS.filter(s =>
+    s.Platform === IG && s.Reach != null && inPrev(s.Date)).map(s => s.Reach));
+  const reachTile = tile("Instagram reach (avg 28-day)", COLOR[IG],
+    igReachNow != null ? fmt(igReachNow) : "—");
   {
     const dd = reachTile.querySelector(".t-delta");
-    if (hasPrev && igReach && igReachPrev) {
-      dd.appendChild(pctChip(igReach.Reach, igReachPrev.Reach, "vs previous period"));
-    } else if (igReach) {
-      dd.textContent = "as of " + fmtDate(igReach.Date);
+    if (hasPrev && igReachNow != null && igReachPrev != null) {
+      dd.appendChild(pctChip(igReachNow, igReachPrev, "vs previous period"));
+    } else if (igReachNow != null) {
+      dd.textContent = "typical across this range";
     }
   }
   tiles.appendChild(reachTile);
@@ -929,7 +938,11 @@ function render() {
   const postsTile = tile("Posts in range", null, fmt(posts.length));
   {
     const dd = postsTile.querySelector(".t-delta");
-    dd.textContent = fmt(totEng) + " interactions";
+    // Views ARE additive (each is a play/display, not a person), so unlike
+    // reach they can honestly be totalled for the period.
+    const totViews = posts.reduce((a, p) => a + (p.Views || 0), 0);
+    dd.textContent = (totViews ? fmt(totViews) + " views · " : "")
+                   + fmt(totEng) + " interactions";
     if (hasPrev && totEngPrev) {
       dd.appendChild(document.createTextNode(" · "));
       dd.appendChild(pctChip(totEng, totEngPrev, "vs previous period"));

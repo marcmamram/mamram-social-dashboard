@@ -124,6 +124,16 @@ on GitHub they live in Actions secrets.
 (first 100 chars), `Views`, `Reach`, `Likes`, `Comments`, `Shares`, `Saves`,
 `Last Synced` (date the metrics were last fetched from Meta).
 
+**Reach cannot be totalled for a period, so the tile shows an average.**
+Reach counts unique accounts, so two days' figures cannot be added (one person
+seen on both days is one account, not two). Meta also refuses to compute reach
+for any window longer than **30 days**, so a true "reach in the last 6 months"
+does not exist and cannot be obtained. The Instagram reach tile therefore shows
+the **average of the stored 28-day reach figures across the selected period** —
+the typical reach level while that period ran. It changes with the date range
+and never overstates. Views, by contrast, count plays rather than people, so
+they *are* additive and the Posts tile shows a true period total.
+
 **Views vs Reach — these are different numbers and people confuse them.**
 *Views* is how many times the post was played or displayed (the big number
 Instagram shows you); *Reach* is how many unique accounts saw it. Views runs
