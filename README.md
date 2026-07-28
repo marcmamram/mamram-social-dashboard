@@ -142,11 +142,26 @@ under a post. The post detail view labels it "Reactions (all types)".
 One status badge (🟢 On track / 🟡 Mixed / 🔴 Underperforming), one sentence
 explaining it, and a Week/Month/Quarter toggle. Nothing to scroll or interpret.
 
-The badge is a weighted score comparing the selected period against the one
-before it — **engagement rate 50%, follower growth 30%, reach 20%** (engagement
-is weighted highest because reach can be inflated by paid boosts). Tune the
-weights and thresholds at the top of `docs/shared.js`; the matching thresholds
-for the written takeaway are at the top of `takeaway.py`.
+The badge is a weighted score — **engagement rate 50%, follower growth 30%,
+reach 20%** (engagement is weighted highest because reach can be inflated by
+paid boosts). Tune the weights and thresholds at the top of `docs/shared.js`;
+the matching thresholds for the written takeaway are at the top of
+`takeaway.py`.
+
+Three rules stop it crying wolf. They matter, because a badge that flashes red
+on an ordinary week gets ignored within a fortnight:
+
+- **The baseline is the median of the previous 8 periods, not just the last
+  one.** One exceptional week would otherwise make the next ordinary week look
+  like a collapse.
+- **Posts younger than 3 days are left out of engagement comparisons**, on
+  both sides. A post keeps gaining for days after it goes out — on this
+  account the median engagement rate roughly doubles between day 2 and day 7 —
+  so fresh posts scored against matured ones invent a slump every week. When a
+  period has nothing mature enough to judge, the page says so.
+- **Everything is anchored to the last day with data, not today.** The
+  collector runs at 09:00, so before then "today" is empty; without this the
+  current window measured 6 days against a 7-day baseline and lost.
 
 Two deliberate behaviours worth knowing:
 

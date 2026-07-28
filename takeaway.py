@@ -40,6 +40,11 @@ FOLLOWER_MILESTONE_STEP = 100     # celebrate crossing each multiple of this
 PLATFORMS = ["Facebook", "Instagram"]
 WINDOW_DAYS = 7
 BASELINE_WEEKS = 8                # history used for "unusually fast" follower moves
+# A post keeps gaining for days after it goes out (median engagement rate on
+# this account roughly doubles between day 2 and day 7). Comparing fresh posts
+# against matured ones invents a collapse every week, so posts younger than
+# this are left out of week-on-week engagement comparisons on both sides.
+POST_MATURITY_DAYS = 3
 
 
 # ------------------------------------------------------------ Airtable IO
@@ -88,6 +93,14 @@ def pct_change(cur, prev):
 def engagement(p):
     return ((p.get("Likes") or 0) + (p.get("Comments") or 0)
             + (p.get("Shares") or 0) + (p.get("Saves") or 0))
+
+
+def is_matured(p, today):
+    """Has this post had long enough to finish accumulating engagement?"""
+    published = p.get("Published")
+    if not published:
+        return False
+    return (today - dt.date.fromisoformat(published)).days >= POST_MATURITY_DAYS
 
 
 def eng_rate(p):
@@ -175,7 +188,7 @@ def slot_best_post(ctx):
     """Slot 2 — a genuine standout only. Needs engagement rates, so this is
     Instagram-only in practice (Facebook post reach is gone)."""
     rated = [(p, r) for p, r in
-             ((p, eng_rate(p)) for p in ctx["all_posts"]) if r]
+             ((p, eng_rate(p)) for p in ctx["matured_posts"]) if r]
     if len(rated) < 2:
         return []
     rates = [r for _, r in rated]
@@ -211,6 +224,17 @@ def slot_gap_or_dip(ctx):
     return out
 
 
+def slot_too_fresh(ctx):
+    """Say when the week's posts are too new to judge, so a missing trend
+    sentence isn't read as silence — or worse, as a slowdown."""
+    fresh = sum(ctx[p].get("fresh_posts", 0) for p in PLATFORMS)
+    judged = len(ctx["matured_posts"])
+    if fresh and not judged:
+        return [f"{fresh} post{'s' if fresh > 1 else ''} went out in the last "
+                f"{POST_MATURITY_DAYS} days — too recent to judge engagement yet."]
+    return []
+
+
 def slot_milestone(ctx):
     """Slot 4 — a round-number crossing, or unusually fast movement."""
     out = []
@@ -243,6 +267,7 @@ def build_context(snaps, posts, today):
                   if p.get("Published") and prev_start <= p["Published"] <= prev_end]
 
     ctx = {"all_posts": cur_posts,
+           "matured_posts": [p for p in cur_posts if is_matured(p, today)],
            "window": f"{win_start} to {today_iso} vs {prev_start} to {prev_end}"}
 
     for plat in PLATFORMS:
@@ -261,10 +286,17 @@ def build_context(snaps, posts, today):
         followers = snapshot_on_or_before(snaps, plat, today_iso, "Followers")
         prev_followers = snapshot_on_or_before(snaps, plat, prev_end, "Followers")
 
-        eng_now = sum(engagement(p) for p in pc)
+        # Week-on-week comparisons use matured posts only (see
+        # POST_MATURITY_DAYS); fresh posts are still climbing and would fake a
+        # collapse every week. The headline totals still report everything.
+        pc_mature = [p for p in pc if is_matured(p, today)]
+        pp_mature = [p for p in pp if is_matured(p, today)]
+        eng_now = sum(engagement(p) for p in pc)          # reported as-is
         eng_prev = sum(engagement(p) for p in pp)
-        rates_now = [r for r in (eng_rate(p) for p in pc) if r]
-        rates_prev = [r for r in (eng_rate(p) for p in pp) if r]
+        eng_now_m = sum(engagement(p) for p in pc_mature)  # compared like-for-like
+        eng_prev_m = sum(engagement(p) for p in pp_mature)
+        rates_now = [r for r in (eng_rate(p) for p in pc_mature) if r]
+        rates_prev = [r for r in (eng_rate(p) for p in pp_mature) if r]
 
         # typical weekly follower movement over the trailing baseline
         weekly_deltas = []
@@ -283,7 +315,10 @@ def build_context(snaps, posts, today):
             "followers": followers,
             "prev_followers": prev_followers,
             "reach_delta_pct": pct_change(reach_now, reach_prev),
-            "eng_delta_pct": pct_change(eng_now, eng_prev) if pp else None,
+            # only compare when both sides have matured posts to compare
+            "eng_delta_pct": (pct_change(eng_now_m, eng_prev_m)
+                              if (pc_mature and pp_mature) else None),
+            "fresh_posts": len(pc) - len(pc_mature),
             "eng_rate": statistics.mean(rates_now) if rates_now else None,
             "prev_eng_rate": statistics.mean(rates_prev) if rates_prev else None,
             "follower_delta": (followers - prev_followers)
@@ -302,7 +337,8 @@ def generate(snaps, posts, today=None):
     today = today or dt.date.today()
     ctx = build_context(snaps, posts, today)
     sentences = (slot_trend(ctx) + slot_best_post(ctx)
-                 + slot_gap_or_dip(ctx) + slot_milestone(ctx))
+                 + slot_gap_or_dip(ctx) + slot_milestone(ctx)
+                 + slot_too_fresh(ctx))
     if not sentences:
         sentences = ["Not enough data yet to summarise this week."]
     return " ".join(sentences), ctx["window"]

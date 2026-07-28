@@ -205,10 +205,22 @@ function renderVerdict(rangeKey) {
     chips.appendChild(note);
   }
 
-  const latest = DATA.snapshots.length ? DATA.snapshots[DATA.snapshots.length - 1].Date : null;
-  document.getElementById("asof").textContent =
-    `${fmtDate(v.from)} – ${fmtDate(v.to)} vs the previous ${RANGES[rangeKey].label.toLowerCase()}`
-    + (latest ? ` · data through ${fmtDate(latest)}` : "");
+  const asof = document.getElementById("asof");
+  asof.textContent = "";
+  const line1 = document.createElement("div");
+  const baselineN = Math.max(0, ...v.metrics.map(m => m.baselineN || 0));
+  line1.textContent =
+    `${fmtDate(v.from)} – ${fmtDate(v.to)}, compared with the previous `
+    + `${baselineN || ""} ${RANGES[rangeKey].label.toLowerCase()}${baselineN === 1 ? "" : "s"}`.replace(/\s+/g, " ");
+  asof.appendChild(line1);
+  /* Say when a period contains posts too fresh to score, so a quiet badge is
+   * never mistaken for a real slowdown. */
+  for (const n of v.notes || []) {
+    const d = document.createElement("div");
+    d.style.marginTop = "3px";
+    d.textContent = n;
+    asof.appendChild(d);
+  }
 }
 
 document.getElementById("ranges").addEventListener("click", ev => {

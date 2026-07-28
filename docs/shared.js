@@ -22,6 +22,15 @@ const BASELINE_PERIODS = 8;          // trailing periods for the rolling baselin
  * therefore judged on the change in net adds and always DISPLAYED as counts. */
 const FOLLOWER_NOISE_FLOOR = 3;      // net-add difference below this reads as flat
 const MAX_DISPLAY_PCT = 300;         // clamp absurd percentages in the text
+/* A post keeps gaining for days after publication — on this account the median
+ * engagement rate roughly doubles between day 2 and day 7. Comparing brand-new
+ * posts against matured ones makes every current period look like a collapse,
+ * so posts younger than this are excluded from rate comparisons on BOTH sides. */
+const POST_MATURITY_DAYS = 3;
+const MIN_POSTS_FOR_RATE = 2;        // fewer than this either side → skip the metric
+/* How decisive the weighted score must be before the badge commits to green or
+ * red; inside this band it stays "Mixed". */
+const VERDICT_DECISION_MARGIN = 0.15;
 
 const FB = "Facebook", IG = "Instagram";
 const PLATFORMS = [FB, IG];
@@ -55,6 +64,15 @@ const pctChange = (cur, prev) =>
   (cur == null || prev == null || prev === 0) ? null : (cur - prev) / prev * 100;
 
 const mean = arr => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
+/* Median, not mean: one exceptional week (a post that went viral) would drag a
+ * mean baseline up and make every ordinary week afterwards look like a
+ * failure. */
+function median(arr) {
+  if (!arr.length) return null;
+  const s = [...arr].sort((a, b) => a - b);
+  const m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+}
 
 /* ---------------------------------------------------------- data loading */
 
@@ -106,19 +124,39 @@ function latestTakeaway(takeaways) {
 /* ------------------------------------------------------- verdict scoring */
 
 const RANGES = {
-  week:    { days: 7,  label: "Week",    baselineLabel: "the previous week" },
-  month:   { days: 30, label: "Month",   baselineLabel: "the previous month" },
-  quarter: { days: 90, label: "Quarter", baselineLabel: "the previous quarter" },
+  week:    { days: 7,  label: "Week",    baselineLabel: "its usual week" },
+  month:   { days: 30, label: "Month",   baselineLabel: "its usual month" },
+  quarter: { days: 90, label: "Quarter", baselineLabel: "its usual quarter" },
 };
 
-/* Latest non-null value of `field` for `platform` at or before `dateISO`. */
-function snapshotAt(snapshots, platform, dateISO, field) {
+/* Latest non-null value of `field` for `platform` at or before `dateISO`,
+ * together with the date it actually came from. The date matters: snapshot
+ * coverage is uneven (weekly for backfilled history, daily since), so two
+ * nominally equal windows can span different numbers of real days. */
+function snapshotAtDated(snapshots, platform, dateISO, field) {
   let hit = null;
   for (const s of snapshots) {
     if (s.Platform !== platform || s.Date > dateISO) continue;
-    if (s[field] != null) hit = s[field];
+    if (s[field] != null) hit = { value: s[field], date: s.Date };
   }
   return hit;
+}
+
+function snapshotAt(snapshots, platform, dateISO, field) {
+  const hit = snapshotAtDated(snapshots, platform, dateISO, field);
+  return hit ? hit.value : null;
+}
+
+const daysBetween = (a, b) =>
+  Math.round((new Date(b + "T00:00:00Z") - new Date(a + "T00:00:00Z")) / 86400000);
+
+/* The most recent date we actually hold data for. Anchoring to this instead of
+ * "today" stops a not-yet-collected today from silently shortening the current
+ * window (6 days measured against a 7-day baseline). */
+function dataEnd(snapshots) {
+  let last = null;
+  for (const s of snapshots) if (!last || s.Date > last) last = s.Date;
+  return last || todayISO();
 }
 
 function classify(deltaPct) {
@@ -138,52 +176,99 @@ function classify(deltaPct) {
 function computeVerdict(data, rangeKey) {
   const { snapshots, posts } = data;
   const days = RANGES[rangeKey].days;
-  const to = todayISO();
+  // Anchor on the last day we actually have data for, not the wall clock.
+  const to = dataEnd(snapshots);
   const from = addDays(to, -(days - 1));
   const prevTo = addDays(from, -1);
   const prevFrom = addDays(prevTo, -(days - 1));
 
   const inRange = (d, a, b) => d && d >= a && d <= b;
+  const matured = p => p.Published && daysBetween(p.Published, to) >= POST_MATURITY_DAYS;
   const metrics = [];
+  const notes = [];
+
+  // Boundaries of period i back from the anchor: i = 0 is the current period.
+  const periodEnd = i => addDays(to, -(days * i));
+  const periodStart = i => addDays(periodEnd(i), -(days - 1));
+
+  /* Net followers added during period i, normalised to a per-day rate and
+   * re-expressed over the nominal period. Snapshot coverage is uneven (weekly
+   * for backfilled history, daily since), so without this a 6-day window
+   * silently loses to a 7-day baseline. */
+  function netAdds(plat, i) {
+    const endS = snapshotAtDated(snapshots, plat, periodEnd(i), "Followers");
+    const startS = snapshotAtDated(snapshots, plat, addDays(periodStart(i), -1), "Followers");
+    if (!endS || !startS) return null;
+    const span = daysBetween(startS.date, endS.date);
+    if (span <= 0) return null;
+    return Math.round((endS.value - startS.value) / span * days);
+  }
+
+  const meanRate = (plat, i) => {
+    const rates = posts
+      .filter(p => p.Platform === plat && inRange(p.Published, periodStart(i), periodEnd(i)))
+      .filter(matured).map(engRate).filter(r => r);
+    return rates.length >= MIN_POSTS_FOR_RATE ? mean(rates) : null;
+  };
+
+  const reachAt = (plat, i) => snapshotAt(snapshots, plat, periodEnd(i), "Reach");
+
+  /* Baseline = median of the preceding periods, not just the one before.
+   * A single exceptional week otherwise makes the next ordinary week look
+   * like a collapse — which is exactly how a healthy channel ends up flagged
+   * "underperforming". */
+  const baselineOf = fn => {
+    const vals = [];
+    for (let i = 1; i <= BASELINE_PERIODS; i++) {
+      const v = fn(i);
+      if (v != null) vals.push(v);
+    }
+    return vals.length ? { value: median(vals), n: vals.length } : null;
+  };
 
   for (const plat of PLATFORMS) {
-    const cur = posts.filter(p => p.Platform === plat && inRange(p.Published, from, to));
-    const prev = posts.filter(p => p.Platform === plat && inRange(p.Published, prevFrom, prevTo));
+    const curPosts = posts.filter(p => p.Platform === plat && inRange(p.Published, from, to));
 
-    // engagement rate — mean per-post rate (needs reach, so IG only in practice)
-    const curRates = cur.map(engRate).filter(r => r);
-    const prevRates = prev.map(engRate).filter(r => r);
-    if (curRates.length && prevRates.length) {
+    // Engagement rate — matured posts only, on every side, so a period is
+    // never marked down merely for containing fresh posts.
+    const curRate = meanRate(plat, 0);
+    const rateBase = baselineOf(i => meanRate(plat, i));
+    if (curRate != null && rateBase) {
       metrics.push({ key: "engagementRate", platform: plat, label: "engagement rate",
-        delta: pctChange(mean(curRates), mean(prevRates)) });
+        delta: pctChange(curRate, rateBase.value), baselineN: rateBase.n });
+    } else if (curPosts.length) {
+      const tooNew = curPosts.filter(p => !matured(p)).length;
+      if (tooNew) {
+        notes.push(`${plat}: ${tooNew} recent post${tooNew > 1 ? "s are" : " is"} `
+                 + "too new to judge engagement yet");
+      }
     }
 
-    // follower growth — net adds this period vs net adds last period, scored
-    // on the difference in counts (see FOLLOWER_NOISE_FLOOR above)
-    const fNow = snapshotAt(snapshots, plat, to, "Followers");
-    const fMid = snapshotAt(snapshots, plat, prevTo, "Followers");
-    const fThen = snapshotAt(snapshots, plat, prevFrom, "Followers");
-    if (fNow != null && fMid != null && fThen != null) {
-      const growth = fNow - fMid, prevGrowth = fMid - fThen;
-      const diff = growth - prevGrowth;
-      const score = Math.abs(diff) < FOLLOWER_NOISE_FLOOR ? 0 : (diff > 0 ? 1 : -1);
+    // Follower growth — counts, never a percentage between two small numbers.
+    const growth = netAdds(plat, 0);
+    const growthBase = baselineOf(i => netAdds(plat, i));
+    if (growth != null && growthBase) {
+      const typical = Math.round(growthBase.value);
+      const diff = growth - typical;
+      let score = Math.abs(diff) < FOLLOWER_NOISE_FLOOR ? 0 : (diff > 0 ? 1 : -1);
+      // Still clearly growing, just not as fast as usual, is not "red" to a
+      // reader — only shrinking, or a collapse in the rate, earns that.
+      if (score < 0 && growth > 0 && growth >= typical * 0.5) score = 0;
       metrics.push({
         key: "followerGrowth", platform: plat, label: "follower growth",
-        counts: { growth, prevGrowth },
+        counts: { growth, prevGrowth: typical }, baselineN: growthBase.n,
         display: `${growth >= 0 ? "+" : "−"}${Math.abs(growth)}`,
-        // delta is kept only so the "sharply red" test has a magnitude to read;
-        // it is never shown as a percentage
-        delta: fNow ? diff / fNow * 100 * 20 : 0,
+        delta: typical ? (growth - typical) / Math.abs(typical) * 100 : 0,
         forcedScore: score,
       });
     }
 
-    // reach — snapshots are trailing-28-day totals, so compare like with like
-    const rNow = snapshotAt(snapshots, plat, to, "Reach");
-    const rPrev = snapshotAt(snapshots, plat, prevTo, "Reach");
-    const rDelta = pctChange(rNow, rPrev);
-    if (rDelta != null) {
-      metrics.push({ key: "reach", platform: plat, label: "reach", delta: rDelta });
+    // Reach — snapshots are trailing-28-day totals, so compare like with like
+    const curReach = reachAt(plat, 0);
+    const reachBase = baselineOf(i => reachAt(plat, i));
+    if (curReach != null && reachBase) {
+      metrics.push({ key: "reach", platform: plat, label: "reach",
+        delta: pctChange(curReach, reachBase.value), baselineN: reachBase.n });
     }
   }
 
@@ -196,7 +281,7 @@ function computeVerdict(data, rangeKey) {
     return { badge: "unknown", emoji: "⚪", text: "Not enough data yet",
              sentence: "There isn't enough history yet to judge performance — "
                        + "check back after a few more days of collection.",
-             metrics: [], silent, range: rangeKey, from, to };
+             metrics: [], silent, notes, range: rangeKey, from, to };
   }
 
   // weighted average of per-metric scores, renormalised over present metrics
@@ -208,19 +293,25 @@ function computeVerdict(data, rangeKey) {
     totalWeight += w;
   }
   const result = totalWeight ? weighted / totalWeight : 0;
-  const sharplyRed = metrics.some(m => m.delta < -2 * TREND_THRESHOLD_PCT);
+  // Only a metric we actually scored red can count as "sharply" red — the
+  // follower-growth magnitude is a ratio of small counts and would otherwise
+  // trip this on ordinary noise.
+  const sharplyRed = metrics.some(m => m.score === -1 && m.delta < -2 * TREND_THRESHOLD_PCT);
   const anyRed = metrics.some(m => m.score === -1);
 
+  /* Symmetric dead zone: a score hovering either side of zero is "Mixed".
+   * Without this, a barely-negative result (one soft metric among several
+   * healthy ones) reads as "Underperforming", which overstates the case. */
   let badge, emoji, text;
-  if (result > 0.15 && !anyRed) {
+  if (result > VERDICT_DECISION_MARGIN && !anyRed) {
     badge = "green"; emoji = "🟢"; text = "On track";
-  } else if (sharplyRed && result < 0) {
+  } else if (sharplyRed && result < -VERDICT_DECISION_MARGIN) {
     badge = "red"; emoji = "🔴"; text = "Underperforming";
   } else {
     badge = "yellow"; emoji = "🟡"; text = "Mixed";
   }
 
-  return { badge, emoji, text, metrics, silent, result, range: rangeKey, from, to,
+  return { badge, emoji, text, metrics, silent, notes, result, range: rangeKey, from, to,
            sentence: verdictSentence(metrics, rangeKey, silent) };
 }
 
@@ -234,13 +325,9 @@ function verdictSentence(metrics, rangeKey, silent = []) {
     // changes is misleading (see FOLLOWER_NOISE_FLOOR).
     if (m.key === "followerGrowth") {
       const { growth, prevGrowth } = m.counts;
-      if (m.score === 0) {
-        return `${m.platform} followers held about steady (${m.display})`;
-      }
       const verb = growth >= 0 ? "gained" : "lost";
-      return `${m.platform} ${verb} ${Math.abs(growth)} followers, `
-           + `${m.score > 0 ? "up from" : "down from"} ${prevGrowth >= 0 ? "+" : "−"}`
-           + `${Math.abs(prevGrowth)}`;
+      return `${m.platform} ${verb} ${Math.abs(growth)} followers `
+           + `(usual ${prevGrowth >= 0 ? "" : "−"}${Math.abs(prevGrowth)})`;
     }
     if (m.score === 0) return `${m.platform} ${m.label} is flat`;
     const pct = Math.min(Math.abs(m.delta), MAX_DISPLAY_PCT);
@@ -252,7 +339,8 @@ function verdictSentence(metrics, rangeKey, silent = []) {
   const rank = m => m.key === "followerGrowth"
     ? Math.abs(m.counts.growth - m.counts.prevGrowth) : Math.abs(m.delta);
   const ranked = [...metrics].sort((a, b) => rank(b) - rank(a));
-  let s = ranked.slice(0, 2).map(describe).join("; ") + ` vs ${baseline}.`;
+  let s = ranked.slice(0, 2).map(describe).join("; ")
+        + `, compared with ${baseline}.`;
   if (silent.length) {
     s += ` ${silent.join(" and ")} had no measurable change in this window.`;
   }
