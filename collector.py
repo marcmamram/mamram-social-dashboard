@@ -68,8 +68,13 @@ def die(msg):
     sys.exit(1)
 
 
-def load_env():
-    """Read a local .env if present (values already in the environment win)."""
+def load_env(required=None):
+    """Read a local .env if present (values already in the environment win).
+
+    `required` defaults to everything the collector needs. Other scripts pass
+    their own (possibly empty) list so they are not forced to be handed
+    credentials they never use.
+    """
     path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
     if os.path.exists(path):
         with open(path) as f:
@@ -78,7 +83,8 @@ def load_env():
                 if line and not line.startswith("#") and "=" in line:
                     k, v = line.split("=", 1)
                     os.environ.setdefault(k, v.strip().strip('"').strip("'"))
-    missing = [k for k in REQUIRED_ENV if not os.environ.get(k)]
+    missing = [k for k in (REQUIRED_ENV if required is None else required)
+               if not os.environ.get(k)]
     if missing:
         die(f"Missing required environment variables: {', '.join(missing)}. "
             "Set them in .env (local) or repository secrets (GitHub Actions).")

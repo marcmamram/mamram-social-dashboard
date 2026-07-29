@@ -170,7 +170,11 @@ def main():
     args = ap.parse_args()
 
     if not args.offline:
-        load_env()
+        # No required list: each check below decides for itself whether it has
+        # the credentials it needs and skips cleanly if not. Demanding the
+        # collector's full set would make this step fail for want of variables
+        # it never reads.
+        load_env(required=[])
 
     check_constants()
     check_public_token()

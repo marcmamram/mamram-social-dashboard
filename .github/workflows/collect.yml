@@ -68,4 +68,4 @@ jobs:
       - name: Explain failure (for non-technical maintainers)
         if: failure()
         run: |
-          echo "::error::The weekly metrics collection FAILED. Most common cause: the Meta access token expired (it lasts ~60 days). See 'Renewing the Meta token' in the README for step-by-step instructions. After renewing, update the META_ACCESS_TOKEN repository secret and re-run this workflow from the Actions tab."
+          echo "::error::This run failed. Scroll up to the first red step and read its message — it says what to do in plain English. The usual causes, in order: (1) the Meta permission needs renewing — follow 'Renewing the Meta token' in the README, then put the new token in the META_ACCESS_TOKEN secret (needs Admin on this repo) and re-run; (2) a self-check found a problem, in which case the day's data was still collected and the message names exactly what to fix; (3) Meta or Airtable were temporarily unavailable — if so, simply re-running this workflow will succeed."
