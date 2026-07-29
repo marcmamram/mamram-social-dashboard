@@ -9,6 +9,33 @@ understand the code — only the three routine tasks below.
 
 ---
 
+## ⚠️ Read this first if you have just inherited this project
+
+Three things can stop this working, and none of them are bugs. They are all
+about *ownership*, so they need a person to act, not a code change.
+
+1. **The Meta permission lapses on 2026-10-12.** Meta expires an app's access
+   to data roughly every 90 days, even though the token itself says it never
+   expires. When the date gets close the daily run will start **failing on
+   purpose** with instructions — that failure is the alarm, not a fault. The
+   day's data is still collected. Fix it with *Routine task 3* below (~10
+   minutes). After that it will need doing again periodically.
+2. **Everything is tied to two personal accounts.** The GitHub repository is
+   owned by the `marcmamram` account, and both Airtable tokens belong to a
+   single Airtable user. If either account is closed or loses access, the
+   collection stops and the dashboard goes blank. **Before the original owner
+   leaves**, move the repository to an organisation account the association
+   controls, and re-create the Airtable tokens from an account that will
+   outlive any one employee.
+3. **Whoever maintains this needs `Admin` on the repository.** Renewing the
+   Meta token means editing a repository *secret*, and GitHub only allows that
+   with Admin permission. A collaborator with Write access can run the
+   workflow but **cannot** perform the fix in Routine task 3.
+
+Everything else runs itself.
+
+---
+
 ## How it works (the 60-second version)
 
 ```
@@ -241,6 +268,25 @@ scope and access to only this base. Anyone with the dashboard URL can read
 a problem, the upgrade path is a tiny server-side proxy that keeps the token
 private (not part of v1).
 
+## What `selfcheck.py` guards against
+
+It runs automatically after every collection and **fails the run** if it finds
+a problem, because each of these breaks silently otherwise:
+
+- **The scoring rules exist in two files** (`docs/shared.js` for the pages,
+  `takeaway.py` for the written summary). If someone changes a threshold in
+  one and not the other, the summary page and the takeaway start quietly
+  disagreeing about the same week. The check compares them and fails on drift.
+- **`docs/config.js` is public.** Pasting the read-write Airtable token there
+  would let anyone edit the data. The check fails if that token ever matches
+  the collector's write token, or is still the placeholder.
+- **Airtable fields renamed in the UI** stop receiving data without any error
+  — the collector writes to a field that no longer exists and the value just
+  vanishes. The check confirms every field the scripts write still exists.
+- **The Meta deadline** described at the top of this file.
+
+You can run it yourself any time: `python3 selfcheck.py`
+
 ## Known limitations (as of July 2026)
 
 - **A post published today reads low or zero until the next run.** The
@@ -287,6 +333,7 @@ private (not part of v1).
 | `backfill.py` | One-time historical CSV import, Facebook (already run) |
 | `backfill_instagram.py` | One-time Instagram history pull from the API (already run) |
 | `takeaway.py` | Weekly plain-English summary generator (runs after the collector) |
+| `selfcheck.py` | Guard rails run after every collection — catches silent breakage (see below) |
 | `docs/index.html` | Summary view — status badge, the landing page |
 | `docs/shared.js` | Data loading + verdict scoring shared by both views |
 | `csv/` | The original Meta Business Suite exports (Facebook, 2024-01 → 2026-07). Kept on the maintainer's machine only — not committed to the public repo |

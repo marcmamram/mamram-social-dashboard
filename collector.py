@@ -33,7 +33,15 @@ GRAPH = "https://graph.facebook.com/v23.0"
 AIRTABLE = "https://api.airtable.com/v0"
 SNAPSHOTS_TABLE = "Snapshots"
 POSTS_TABLE = "Posts"
-TOKEN_WARN_DAYS = 14  # warn when the Meta token expires within this many days
+# Warn this far ahead of a token deadline. Deliberately generous: nobody is
+# watching this daily, so the warning has to survive a few unread runs and
+# still leave time for a non-technical maintainer to act.
+TOKEN_WARN_DAYS = 45
+# Inside this window the run is failed ON PURPOSE, *after* the data is safely
+# written. A log warning is easy to miss — GitHub only emails collaborators
+# when a run fails, so this is what actually gets someone's attention before
+# the pipeline dies for good.
+TOKEN_FAIL_DAYS = 10
 
 REQUIRED_ENV = [
     "META_ACCESS_TOKEN",
@@ -134,17 +142,36 @@ def check_meta_token(user_token):
     if not d.get("is_valid"):
         die("The Meta access token is INVALID or EXPIRED. No metrics can be "
             "collected until it is renewed — see 'Renewing the Meta token' in the README.")
-    expires = d.get("expires_at")
-    if not expires:
-        log("Meta token OK (a Page token with no expiry date).")
+    # TWO independent clocks can kill this token, and only checking the first
+    # means the pipeline dies with no warning at all:
+    #   expires_at             — the token's own lifetime. A Page token reports
+    #                            0 here, i.e. "never expires".
+    #   data_access_expires_at — Meta's Data Access Expiration on the underlying
+    #                            permission grant. It still applies to a token
+    #                            whose expires_at says "never", so this is the
+    #                            deadline that actually bites.
+    deadlines = []
+    if d.get("expires_at"):
+        deadlines.append(("the token expires", d["expires_at"]))
+    if d.get("data_access_expires_at"):
+        deadlines.append(("Meta's data-access permission lapses",
+                          d["data_access_expires_at"]))
+
+    if not deadlines:
+        log("Meta token OK — no expiry and no data-access deadline.")
+        return None
+
+    reason, ts = min(deadlines, key=lambda x: x[1])
+    when = dt.datetime.fromtimestamp(ts).date()
+    days_left = (when - dt.date.today()).days
+    if days_left <= TOKEN_WARN_DAYS:
+        warn(f"ACTION NEEDED by {when} ({days_left} day(s) away): {reason}. "
+             "Collection will stop on that date until a new token is issued — "
+             "see 'Renewing the Meta token' in the README. This is a 10-minute "
+             "job; it does not require the person who originally set this up.")
     else:
-        days_left = (dt.datetime.fromtimestamp(expires) - dt.datetime.now()).days
-        expiry_date = dt.datetime.fromtimestamp(expires).date()
-        if days_left <= TOKEN_WARN_DAYS:
-            warn(f"The Meta access token expires in {days_left} day(s), on {expiry_date}. "
-                 "Renew it NOW — see 'Renewing the Meta token' in the README.")
-        else:
-            log(f"Meta token OK, expires {expiry_date} ({days_left} days left).")
+        log(f"Meta token OK — next deadline {when} ({days_left} days): {reason}.")
+    return {"days_left": days_left, "date": when, "reason": reason}
 
 
 def get_page_token(user_token, page_id):
@@ -475,6 +502,9 @@ def main():
     n_posts = airtable_upsert(POSTS_TABLE, posts, ["Post ID"])
     log(f"Done: upserted {n_snap} snapshot row(s) and {n_posts} post row(s)."
         + (f" Platforms skipped due to errors: {', '.join(failures)}." if failures else ""))
+    # NB: an imminent token deadline is turned into a loud failure by
+    # selfcheck.py, which runs as the last step. Deliberately not done here —
+    # exiting non-zero would abort the job and skip the weekly takeaway.
 
 
 if __name__ == "__main__":

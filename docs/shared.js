@@ -48,7 +48,14 @@ const addDays = (iso, n) => {
   d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().slice(0, 10);
 };
-const todayISO = () => new Date().toISOString().slice(0, 10);
+/* The viewer's own calendar date. Deliberately not toISOString(), which is
+ * UTC: Israel runs 2-3 hours ahead, so between midnight and ~03:00 local that
+ * returns yesterday and shifts every date range by a day. */
+const todayISO = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
+       + `-${String(d.getDate()).padStart(2, "0")}`;
+};
 const mondayOf = iso => {
   const d = new Date(iso + "T00:00:00Z");
   d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
