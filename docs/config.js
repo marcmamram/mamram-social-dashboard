@@ -4,6 +4,6 @@
 // does not depend on any individual. Never put a write-capable token here:
 // selfcheck.py fails the build if this ever matches the collector's token.
 window.DASHBOARD_CONFIG = {
-  AIRTABLE_TOKEN: "patLaoi16ffM5Xz9A.8bbb3dc16c5a9a6e9dab0df271939fe9024f8059899c05cd3559eedf8e525207",
+  AIRTABLE_TOKEN: "patjqvXIIjcj8i4Sl.21fe163bd8cb5fdd2cc0670e038d4a733df3abd94a6bbd5bc5d8b5c2e6bac346",
   AIRTABLE_BASE_ID: "appZskf5zx6ewhjMW",
 };
