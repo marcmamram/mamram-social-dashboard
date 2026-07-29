@@ -114,13 +114,27 @@ def check_airtable_schema():
                    headers={"Authorization": f"Bearer {token}"})
     if "tables" not in d:
         # schema scope is optional; fall back to reading a row per table
+        unreadable = []
         for table in REQUIRED:
             r = _http_json(
                 f"{AIRTABLE}/{base}/{urllib.parse.quote(table)}?maxRecords=1",
                 headers={"Authorization": f"Bearer {token}"})
             if "error" in r:
-                fail(f"Airtable table '{table}' is unreadable: {r['error']}")
-        ok("Airtable tables reachable (field-level check needs the schema scope)")
+                unreadable.append((table, r["error"]))
+        if not unreadable:
+            ok("Airtable tables reachable (field-level check needs the schema scope)")
+            return
+        # One cause explains all of them: say that once instead of repeating it
+        # per table, and name the likely reason rather than echoing a raw error.
+        kinds = {(e.get("type") if isinstance(e, dict) else str(e)) for _, e in unreadable}
+        if kinds == {"UNAUTHORIZED"}:
+            fail("The Airtable token is not valid — every table came back "
+                 "UNAUTHORIZED. It has probably been revoked or replaced. Put a "
+                 "current token in AIRTABLE_TOKEN (the repository secret in CI, "
+                 "or .env when running locally).")
+        else:
+            for table, err in unreadable:
+                fail(f"Airtable table '{table}' is unreadable: {err}")
         return
     present = {t["name"]: {f["name"] for f in t["fields"]} for t in d["tables"]}
     for table, fields in REQUIRED.items():
