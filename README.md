@@ -190,6 +190,14 @@ on an ordinary week gets ignored within a fortnight:
 mirrors `docs/shared.js`), so the two pages can never disagree about how a
 week went. If you change a threshold, change it in both — the constants sit at
 the top of each file with matching names.
+- **The sentence always explains the badge.** A red badge leads with what
+  pulled it down, a green one with what lifted it, and Mixed shows the best
+  and worst together — so the words can never contradict the colour, and
+  whichever platform is dragging gets named instead of hidden.
+- **The score is proportionate, and "red" means going backwards.** A metric
+  11% below its usual counts for less than one 80% below, and a channel that
+  merely grew *more slowly* than usual is never called Underperforming — only
+  one actually losing ground is.
 - **Everything is anchored to the last day with data, not today.** The
   collector runs at 09:00, so before then "today" is empty; without this the
   current window measured 6 days against a 7-day baseline and lost.

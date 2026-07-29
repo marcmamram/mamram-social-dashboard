@@ -324,19 +324,35 @@ function computeVerdict(data, rangeKey) {
              metrics: [], silent, notes, range: rangeKey, from, to };
   }
 
-  // weighted average of per-metric scores, renormalised over present metrics
+  /* Two numbers per metric:
+   *   score — green / yellow / red, used for the chips and the green gate
+   *   norm  — how far it moved, -1..1, used for the weighted total
+   * Scoring on norm rather than the flat ±1 keeps the badge proportionate: a
+   * metric 11% below its usual should not weigh the same as one 80% below. */
   let weighted = 0, totalWeight = 0;
   for (const m of metrics) {
     const w = (VERDICT_WEIGHTS[m.key] || 0) / metrics.filter(x => x.key === m.key).length;
     m.score = m.forcedScore !== undefined ? m.forcedScore : classify(m.delta);
-    weighted += m.score * w;
+    const full = 2 * TREND_THRESHOLD_PCT;   // movement counted as "all the way"
+    m.norm = Math.max(-1, Math.min(1, (m.delta || 0) / full));
+    // a metric inside the flat band contributes nothing either way
+    if (m.score === 0) m.norm = 0;
+    m.weight = w;
+    m.impact = Math.abs(m.norm) * w;        // share of the badge this drove
+    weighted += m.norm * w;
     totalWeight += w;
   }
   const result = totalWeight ? weighted / totalWeight : 0;
-  // Only a metric we actually scored red can count as "sharply" red — the
-  // follower-growth magnitude is a ratio of small counts and would otherwise
-  // trip this on ordinary noise.
-  const sharplyRed = metrics.some(m => m.score === -1 && m.delta < -2 * TREND_THRESHOLD_PCT);
+  /* "Severe" means the channel is genuinely going backwards, not merely
+   * growing more slowly than usual. A page that added 10 followers instead of
+   * its usual 34 is still growing, and calling that severe is how a dashboard
+   * ends up shouting Underperforming at a healthy month. */
+  const severe = metrics.some(m => {
+    if (m.score !== -1) return false;
+    // shedding a couple of followers out of thousands is noise, not severity
+    if (m.key === "followerGrowth") return m.counts.growth < -FOLLOWER_NOISE_FLOOR;
+    return m.delta < -2 * TREND_THRESHOLD_PCT;
+  });
   const anyRed = metrics.some(m => m.score === -1);
 
   /* Symmetric dead zone: a score hovering either side of zero is "Mixed".
@@ -345,20 +361,20 @@ function computeVerdict(data, rangeKey) {
   let badge, emoji, text;
   if (result > VERDICT_DECISION_MARGIN && !anyRed) {
     badge = "green"; emoji = "🟢"; text = "On track";
-  } else if (sharplyRed && result < -VERDICT_DECISION_MARGIN) {
+  } else if (severe && result < -VERDICT_DECISION_MARGIN) {
     badge = "red"; emoji = "🔴"; text = "Underperforming";
   } else {
     badge = "yellow"; emoji = "🟡"; text = "Mixed";
   }
 
   return { badge, emoji, text, metrics, silent, notes, result, range: rangeKey, from, to,
-           sentence: verdictSentence(metrics, rangeKey, silent) };
+           sentence: verdictSentence(metrics, rangeKey, silent, badge) };
 }
 
 /* One plain sentence explaining the badge. Deliberately describes the
  * CHANNEL's performance, never a person's — this text may be screenshotted
  * and forwarded without context. */
-function verdictSentence(metrics, rangeKey, silent = []) {
+function verdictSentence(metrics, rangeKey, silent = [], badge = "yellow") {
   const baseline = RANGES[rangeKey].baselineLabel;
   const describe = m => {
     // Follower growth speaks in counts — a percentage between two small net
@@ -366,7 +382,8 @@ function verdictSentence(metrics, rangeKey, silent = []) {
     if (m.key === "followerGrowth") {
       const { growth, prevGrowth } = m.counts;
       const verb = growth >= 0 ? "gained" : "lost";
-      return `${m.platform} ${verb} ${Math.abs(growth)} followers `
+      const n = Math.abs(growth);
+      return `${m.platform} ${verb} ${n} follower${n === 1 ? "" : "s"} `
            + `(usual ${prevGrowth >= 0 ? "" : "−"}${Math.abs(prevGrowth)})`;
     }
     if (m.score === 0) return `${m.platform} ${m.label} is flat`;
@@ -375,12 +392,32 @@ function verdictSentence(metrics, rangeKey, silent = []) {
     return `${m.platform} ${m.label} is ${m.score > 0 ? "up" : "down"} `
          + `${over}${pct.toFixed(0)}%`;
   };
-  // lead with the biggest mover, mention at most two things
-  const rank = m => m.key === "followerGrowth"
-    ? Math.abs(m.counts.growth - m.counts.prevGrowth) : Math.abs(m.delta);
-  const ranked = [...metrics].sort((a, b) => rank(b) - rank(a));
-  let s = ranked.slice(0, 2).map(describe).join("; ")
-        + `, compared with ${baseline}.`;
+  /* The sentence has to justify the badge. Picking the two biggest movers
+   * regardless of sign meant a red badge could be explained entirely with
+   * good news, leaving the reader to wonder what was actually wrong — and
+   * hiding whichever platform was dragging. So: a red badge leads with what
+   * pulled it down, a green one with what lifted it, and Mixed shows one of
+   * each so the word means something. */
+  /* Rank by how much each metric actually moved the badge. Ranking on raw
+   * figures compared follower counts against percentages — different units,
+   * so a 6-follower swing could outrank a 17% move purely by being a bigger
+   * number. */
+  const byImpact = arr => [...arr].sort((a, b) => (b.impact || 0) - (a.impact || 0));
+  const downs = byImpact(metrics.filter(m => m.score < 0));
+  const ups = byImpact(metrics.filter(m => m.score > 0));
+  const flats = byImpact(metrics.filter(m => m.score === 0));
+
+  let picked;
+  if (badge === "red") {
+    picked = [...downs, ...ups, ...flats].slice(0, 2);
+  } else if (badge === "green") {
+    picked = [...ups, ...downs, ...flats].slice(0, 2);
+  } else {
+    // Mixed: show the tension explicitly — best thing and worst thing.
+    picked = downs.length && ups.length ? [ups[0], downs[0]]
+           : byImpact(metrics).slice(0, 2);
+  }
+  let s = picked.map(describe).join("; ") + `, compared with ${baseline}.`;
   if (silent.length) {
     s += ` ${silent.join(" and ")} had no measurable change in this window.`;
   }
