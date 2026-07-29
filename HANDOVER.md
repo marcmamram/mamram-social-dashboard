@@ -137,22 +137,25 @@ migration is required.
 
 What she does need to know:
 
-- **She is the only person who can generate a new Meta access token.** When
-  the daily run starts failing with a token-deadline message (expected around
-  **12 October 2026**, and roughly every 90 days after), the steps are in
-  *Renewing the Meta token* in `README.md`. Bar generates the token; whoever
-  holds the office GitHub login pastes it into the **`META_ACCESS_TOKEN`**
-  repository secret and re-runs the workflow. It is a two-person job unless
-  one person holds both.
-- **The app currently has a single administrator.** If Bar ever leaves or
-  loses access to that Facebook account, the app is orphaned: no new token can
-  be issued through it and collection cannot be restored without rebuilding
-  the app from scratch. She should add a second Administrator at
-  <https://developers.facebook.com/apps/839252902454928/roles/> — ideally
-  someone who will outlast any one employee.
+- **She renews the Meta access token, start to finish.** When the daily run
+  starts failing with a token-deadline message (expected around **12 October
+  2026**, and roughly every 90 days after), the steps are in *Renewing the
+  Meta token* in `README.md`. Bar can do the whole thing alone: she is the app
+  administrator, so she can generate the token, and she has the office login,
+  so she can paste it into the **`META_ACCESS_TOKEN`** repository secret and
+  re-run the workflow.
+- **The app still has a single administrator, and shared logins do not fix
+  that.** App administrator rights belong to Bar's *personal Facebook account*
+  (`10239184754749211`), not to any email address. Sharing the office mailbox
+  or the GitHub login gives nobody else the ability to issue a Meta token. If
+  that Facebook account is ever lost or leaves the organisation, the app is
+  orphaned: no new token can be created through it, and collection cannot be
+  restored without registering a new Meta app and re-approving its permissions.
 
-That second admin is the single most valuable five minutes anyone can spend on
-the long-term survival of this project.
+  The fix is five minutes and only Bar can do it: add a second **Administrator**
+  at <https://developers.facebook.com/apps/839252902454928/roles/>. Not urgent
+  — it costs nothing while she is here — but it is the one failure this project
+  cannot recover from on its own.
 
 ## Step 7 — Verify the whole chain
 
