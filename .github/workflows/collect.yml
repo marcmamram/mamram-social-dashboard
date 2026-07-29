@@ -2,14 +2,21 @@ name: Collect social metrics
 
 on:
   schedule:
-    # Daily 06:00 UTC, chosen for Tel Aviv: that is 09:00 there in summer
-    # (IDT, UTC+3) and 08:00 in winter (IST, UTC+2). GitHub's cron is UTC-only
-    # and does not follow daylight saving, so the hour shifts by one across
-    # the year — deliberately accepted, since the exact hour does not matter.
+    # 06:12 UTC, aimed at breakfast in Tel Aviv: 09:12 in summer (IDT, UTC+3)
+    # and 08:12 in winter (IST, UTC+2). GitHub's cron is UTC-only and ignores
+    # Israeli daylight saving, so the hour shifts once a year — accepted, the
+    # exact hour does not matter.
+    #
+    # The odd minute is deliberate. GitHub queues scheduled workflows and
+    # delays them under load; jobs asking for the top of the hour wait the
+    # longest. At "0 6 * * *" this workflow was actually starting 5-10 hours
+    # late. An off-peak minute is the standard mitigation — but GitHub still
+    # guarantees nothing, so treat the time as "each morning", not a promise.
+    #
     # Daily (not weekly) keeps recent posts' like/comment counts within ~24h
     # of Instagram: they keep gaining engagement after publish, so a weekly
     # snapshot lagged noticeably.
-    - cron: "0 6 * * *"
+    - cron: "12 6 * * *"
   workflow_dispatch: {}
 
 jobs:

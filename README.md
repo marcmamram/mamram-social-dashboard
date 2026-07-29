@@ -37,10 +37,16 @@ Meta Graph API ──▶ collector.py (runs daily via GitHub Actions)
   whoever manages the accounts. `shared.js` holds the data loading and scoring
   used by both, so the two pages can never disagree.
 - **`.github/workflows/collect.yml`** — the schedule. GitHub runs the
-  collector automatically every morning, Tel Aviv time: **09:00 in summer,
-  08:00 in winter**. (GitHub can only schedule in UTC and does not follow
-  Israeli daylight saving, so the hour shifts by one across the year. This is
-  deliberate — the exact hour does not matter, only that it runs daily.)
+  collector automatically **every morning, Tel Aviv time** (~09:10 in summer,
+  ~08:10 in winter — GitHub only schedules in UTC and does not follow Israeli
+  daylight saving, so the hour shifts once a year; this is deliberate and
+  harmless).
+
+  **Do not be surprised if a run starts hours later than scheduled.** GitHub
+  queues scheduled jobs and delays them when it is busy — runs here have
+  started up to 10 hours late. Nothing is broken when that happens: the day's
+  numbers still get collected, just later in the day. If you need the
+  dashboard updated *now*, use the manual run in Routine task 2.
 
 ---
 
