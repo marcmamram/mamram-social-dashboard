@@ -24,13 +24,12 @@ about *ownership*, so they need a person to act, not a code change.
    purpose** with instructions — that failure is the alarm, not a fault. The
    day's data is still collected. Fix it with *Routine task 3* below (~10
    minutes). After that it will need doing again periodically.
-2. **Everything is tied to two personal accounts.** The GitHub repository is
-   owned by the `marcmamram` account, and both Airtable tokens belong to a
-   single Airtable user. If either account is closed or loses access, the
-   collection stops and the dashboard goes blank. **Before the original owner
-   leaves**, move the repository to an organisation account the association
-   controls, and re-create the Airtable tokens from an account that will
-   outlive any one employee.
+2. **The Airtable tokens still belong to one person.** The GitHub repository
+   now belongs to the shared office account (`MamramAlumni`), but both
+   Airtable API tokens were created by an individual's Airtable login. If that
+   account is closed, collection stops *and* the dashboard goes blank
+   together. Re-create both tokens from the office account — step 5 of
+   [HANDOVER.md](HANDOVER.md).
 3. **Only the repository owner can renew the Meta token.** Renewing it means
    editing a repository *secret*, which requires Admin. On a repository owned
    by a personal account — as this one is — **the owner is the only Admin, and

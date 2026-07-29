@@ -24,9 +24,11 @@ and the owner's username is part of it. After the transfer it becomes
 especially — needs the new one. Send it round *after* step 4 confirms the new
 address is live, not before.
 
-Also worth knowing: **GitHub does not carry Actions secrets across a
-transfer.** The workflow will fail after moving until step 3 is done. That is
-expected, not a fault.
+**What does survive the transfer** (verified on the real migration, 29 Jul
+2026): the Actions secrets, the Pages site, the workflow history, and the old
+Pages address, which kept working and served identical content. Do not assume
+any of that — *check* it, per steps 3 and 4, and only act if something is
+actually missing.
 
 ---
 
@@ -59,30 +61,34 @@ git remote set-url origin https://github.com/OFFICE/mamram-social-dashboard.git
 git remote -v          # confirm it shows OFFICE
 ```
 
-## Step 3 — Re-create the Actions secrets
+## Step 3 — Check the Actions secrets
 
-The seven secrets did not come across. From this project folder, signed in as
-the office account (`gh auth login`, then `gh auth status` to confirm):
+First look: repository → **Settings → Secrets and variables → Actions**. There
+should be seven: `META_ACCESS_TOKEN`, `FB_PAGE_ID`, `IG_BUSINESS_ACCOUNT_ID`,
+`META_APP_ID`, `META_APP_SECRET`, `AIRTABLE_TOKEN`, `AIRTABLE_BASE_ID`.
+
+In the real migration they came across intact and nothing was needed here. If
+any are missing, restore them all in one command from this project folder,
+signed in as the office account (`gh auth login`, `gh auth status` to confirm):
 
 ```bash
 ./migrate_secrets.sh OFFICE/mamram-social-dashboard
 ```
 
-It reads the values out of your local `.env` and never prints them. If you
-would rather do it by hand: repository → **Settings → Secrets and variables →
-Actions**, and add each of `META_ACCESS_TOKEN`, `FB_PAGE_ID`,
-`IG_BUSINESS_ACCOUNT_ID`, `META_APP_ID`, `META_APP_SECRET`, `AIRTABLE_TOKEN`,
-`AIRTABLE_BASE_ID`.
+It reads the values from your local `.env` and never prints them.
 
-## Step 4 — Turn the website back on
+## Step 4 — Check the website
 
-1. Repository → **Settings → Pages**.
-2. Under *Build and deployment*, set **Source: Deploy from a branch**, then
-   **Branch: `main`**, **Folder: `/docs`**. Save.
-3. Wait a couple of minutes, then open `https://OFFICE.github.io/mamram-social-dashboard/`.
+Open `https://OFFICE.github.io/mamram-social-dashboard/`. In the real
+migration Pages rebuilt itself automatically and this was already live.
 
-If it shows the status badge and a sentence, this step is done. Now send the
-new address to whoever used the old one.
+If it 404s: repository → **Settings → Pages** → *Build and deployment* →
+**Source: Deploy from a branch**, **Branch: `main`**, **Folder: `/docs`**,
+Save, and wait a couple of minutes.
+
+Once it shows the status badge and a sentence, send the new address to whoever
+used the old one. The old address happened to keep working too, but do not
+rely on that — it is not a documented guarantee and could stop at any time.
 
 ## Step 5 — Move Airtable onto the office account
 
