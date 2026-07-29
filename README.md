@@ -9,6 +9,10 @@ understand the code — only the three routine tasks below.
 
 ---
 
+> **Migrating this to another account?** Follow [HANDOVER.md](HANDOVER.md) —
+> an ordered, one-time runbook. Do that first; it resolves most of the risks
+> listed immediately below.
+
 ## ⚠️ Read this first if you have just inherited this project
 
 Three things can stop this working, and none of them are bugs. They are all
@@ -346,6 +350,7 @@ You can run it yourself any time: `python3 selfcheck.py`
 | `backfill_instagram.py` | One-time Instagram history pull from the API (already run) |
 | `takeaway.py` | Weekly plain-English summary generator (runs after the collector) |
 | `selfcheck.py` | Guard rails run after every collection — catches silent breakage (see below) |
+| `migrate_secrets.sh` | Copies the seven secrets into a repo after a transfer (see HANDOVER.md) |
 | `docs/index.html` | Summary view — status badge, the landing page |
 | `docs/shared.js` | Data loading + verdict scoring shared by both views |
 | `csv/` | The original Meta Business Suite exports (Facebook, 2024-01 → 2026-07). Kept on the maintainer's machine only — not committed to the public repo |
