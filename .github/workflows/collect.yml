@@ -2,9 +2,13 @@ name: Collect social metrics
 
 on:
   schedule:
-    # Daily 06:00 UTC (09:00 Israel time). Daily (not weekly) keeps recent
-    # posts' like/comment counts within ~24h of Instagram — they keep gaining
-    # engagement after publish, so a weekly snapshot lagged noticeably.
+    # Daily 06:00 UTC, chosen for Tel Aviv: that is 09:00 there in summer
+    # (IDT, UTC+3) and 08:00 in winter (IST, UTC+2). GitHub's cron is UTC-only
+    # and does not follow daylight saving, so the hour shifts by one across
+    # the year — deliberately accepted, since the exact hour does not matter.
+    # Daily (not weekly) keeps recent posts' like/comment counts within ~24h
+    # of Instagram: they keep gaining engagement after publish, so a weekly
+    # snapshot lagged noticeably.
     - cron: "0 6 * * *"
   workflow_dispatch: {}
 

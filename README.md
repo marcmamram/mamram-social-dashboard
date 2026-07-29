@@ -37,7 +37,10 @@ Meta Graph API ──▶ collector.py (runs daily via GitHub Actions)
   whoever manages the accounts. `shared.js` holds the data loading and scoring
   used by both, so the two pages can never disagree.
 - **`.github/workflows/collect.yml`** — the schedule. GitHub runs the
-  collector automatically every day at 09:00 Israel time.
+  collector automatically every morning, Tel Aviv time: **09:00 in summer,
+  08:00 in winter**. (GitHub can only schedule in UTC and does not follow
+  Israeli daylight saving, so the hour shifts by one across the year. This is
+  deliberate — the exact hour does not matter, only that it runs daily.)
 
 ---
 
