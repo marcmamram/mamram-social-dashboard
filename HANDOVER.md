@@ -4,7 +4,9 @@ One-time migration. Follow in order — later steps depend on earlier ones.
 Budget about 45 minutes. Nothing here is reversible-by-accident, but the one
 genuinely disruptive change is flagged in step 1.
 
-Throughout, replace `OFFICE` with the office account's GitHub username.
+The destination is the office account, **office@mamramalumni.org.il**.
+Throughout, replace `OFFICE` with that account's GitHub **username** (not the
+email — GitHub transfers are by username).
 
 ---
 
@@ -40,13 +42,13 @@ expected, not a fault.
 The repository is now `OFFICE/mamram-social-dashboard`. Old repository links
 redirect automatically; the *Pages* address does not.
 
-> **One limitation to be aware of.** A repository owned by a personal account
-> has exactly one administrator — the owner. You cannot grant a colleague
-> Admin on it; GitHub accepts the request and silently ignores it. In practice
-> that means **only whoever holds the office login can edit secrets or renew
-> the Meta token.** If you would rather two named people could do that, create
-> a free GitHub *Organisation* and transfer there instead — the steps are
-> otherwise identical.
+> **Why a shared account rather than an Organisation.** A repository owned by
+> a personal account has exactly one administrator, and Admin cannot be
+> delegated to a collaborator. That is fine here *by design*: the office
+> account is shared, and everyone who needs to maintain this has its
+> credentials. It does mean maintenance is done **signed in as the office
+> account**, not as an individual — including renewing the Meta token and
+> editing secrets.
 
 ## Step 2 — Point your local copy at the new home
 
@@ -84,9 +86,10 @@ new address to whoever used the old one.
 
 ## Step 5 — Move Airtable onto the office account
 
-The office account already has access to the base. What must change is **who
-owns the tokens**, because the current ones belong to a personal account and
-will stop working when it goes.
+The office account already has access to the base, so no data needs moving.
+What must change is **who owns the two API tokens** — they currently belong to
+a personal Airtable account and will stop working when it goes, taking both
+the collector and the public dashboard with them.
 
 Signed in to Airtable **as the office account**:
 
