@@ -381,10 +381,17 @@ function verdictSentence(metrics, rangeKey, silent = [], badge = "yellow") {
     // changes is misleading (see FOLLOWER_NOISE_FLOOR).
     if (m.key === "followerGrowth") {
       const { growth, prevGrowth } = m.counts;
-      const verb = growth >= 0 ? "gained" : "lost";
+      const gaining = growth >= 0, usuallyGaining = prevGrowth >= 0;
       const n = Math.abs(growth);
-      return `${m.platform} ${verb} ${n} follower${n === 1 ? "" : "s"} `
-           + `(usual ${prevGrowth >= 0 ? "" : "−"}${Math.abs(prevGrowth)})`;
+      const head = `${m.platform} ${gaining ? "gained" : "lost"} ${n} `
+                 + `follower${n === 1 ? "" : "s"}`;
+      /* Spell out the baseline's direction whenever it differs from this
+       * period's, or "lost 1 follower (usual 5)" reads as though losing five
+       * were the norm. When both point the same way the bare number is
+       * unambiguous and less clumsy. */
+      return gaining === usuallyGaining
+        ? `${head} (usual ${Math.abs(prevGrowth)})`
+        : `${head} (usually ${usuallyGaining ? "gains" : "loses"} ${Math.abs(prevGrowth)})`;
     }
     if (m.score === 0) return `${m.platform} ${m.label} is flat`;
     const pct = Math.min(Math.abs(m.delta), MAX_DISPLAY_PCT);
