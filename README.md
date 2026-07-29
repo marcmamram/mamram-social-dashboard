@@ -27,10 +27,22 @@ about *ownership*, so they need a person to act, not a code change.
    leaves**, move the repository to an organisation account the association
    controls, and re-create the Airtable tokens from an account that will
    outlive any one employee.
-3. **Whoever maintains this needs `Admin` on the repository.** Renewing the
-   Meta token means editing a repository *secret*, and GitHub only allows that
-   with Admin permission. A collaborator with Write access can run the
-   workflow but **cannot** perform the fix in Routine task 3.
+3. **Only the repository owner can renew the Meta token.** Renewing it means
+   editing a repository *secret*, which requires Admin. On a repository owned
+   by a personal account — as this one is — **the owner is the only Admin, and
+   that cannot be delegated**: granting a collaborator Admin silently does
+   nothing (GitHub only offers Admin on organisation-owned repositories).
+   Today `bari-mamram` has Write access, so they can run the workflow and edit
+   the code, but **cannot** perform Routine task 3.
+
+**All three of the above are solved by one action:** create a free GitHub
+**organisation** owned by the association, transfer this repository into it
+(Settings → General → Transfer ownership), and make at least two people
+owners. Then secrets can be edited by more than one person, and the project
+survives any individual leaving. Do the equivalent in Airtable: re-create both
+tokens from an account the association controls, update the `AIRTABLE_TOKEN`
+secret and `docs/config.js`, and confirm the base is owned by a workspace the
+association owns rather than one person.
 
 Everything else runs itself.
 
